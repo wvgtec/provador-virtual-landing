@@ -434,10 +434,11 @@
         <div class="demo-right">
           <div class="demo-label">Resultado</div>
           <div class="demo-result-area" id="result-area">
-            <div class="demo-result-placeholder">
+            <div class="demo-result-placeholder" id="result-placeholder">
               <div class="icon">✨</div>
               <p>O resultado vai aparecer aqui</p>
             </div>
+            <img id="result-img" style="display:none; width:100%; height:100%; object-fit:contain; border-radius:12px" alt="Resultado">
             <div class="demo-progress" id="demo-progress">
               <div class="spinner"></div>
               <div class="progress-text" id="progress-text">Processando com IA...</div>
@@ -815,7 +816,10 @@
         const d = await r.json();
         if (d.status === 'done') {
           progress.classList.remove('visible');
-          resultArea.innerHTML = `<img src="${d.resultImage}" alt="Resultado" style="width:100%;height:100%;object-fit:contain;border-radius:12px">`;
+          document.getElementById('result-placeholder').style.display = 'none';
+          const resultImg = document.getElementById('result-img');
+          resultImg.src = d.resultImage;
+          resultImg.style.display = 'block';
           document.getElementById('result-cta').style.display = 'flex';
           btn.disabled = false;
           document.getElementById('demo-btn-text').textContent = 'Testar outra peça';
