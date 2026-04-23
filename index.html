@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Provador Virtual IA — Venda mais com prova de roupa inteligente</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --purple: #6C5CE7;
+      --purple-dark: #5649c0;
+      --purple-light: #f0eeff;
+      --text: #1a1a2e;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --white: #ffffff;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--text); line-height: 1.6; }
+
+    /* NAV */
+    nav {
+      position: sticky; top: 0; z-index: 200;
+      background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 0;
+    }
+    .nav-inner { max-width: 1160px; margin: 0 auto; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; }
+    .logo { font-size: 22px; font-weight: 800; color: var(--purple); letter-spacing: -0.5px; }
+    .logo span { color: var(--text); }
+    .nav-cta { background: var(--purple); color: #fff; border: none; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background .2s; text-decoration: none; }
+    .nav-cta:hover { background: var(--purple-dark); }
+
+    /* HERO */
+    .hero {
+      background: linear-gradient(135deg, #fafafa 0%, #f0eeff 100%);
+      padding: 80px 24px 0;
+      text-align: center;
+      overflow: hidden;
+    }
+    .hero-badge { display: inline-block; background: var(--purple-light); color: var(--purple); font-size: 13px; font-weight: 600; padding: 6px 16px; border-radius: 20px; margin-bottom: 24px; border: 1px solid #d4cbff; }
+    .hero h1 { font-size: clamp(32px, 5vw, 60px); font-weight: 900; line-height: 1.1; letter-spacing: -2px; color: var(--text); margin-bottom: 20px; }
+    .hero h1 em { color: var(--purple); font-style: normal; }
+    .hero-sub { font-size: clamp(16px, 2vw, 20px); color: var(--muted); max-width: 580px; margin: 0 auto 36px; }
+    .hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 48px; }
+    .btn-primary { background: var(--purple); color: #fff; border: none; padding: 16px 36px; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; transition: all .2s; box-shadow: 0 4px 20px rgba(108,92,231,.35); }
+    .btn-primary:hover { background: var(--purple-dark); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(108,92,231,.45); }
+    .btn-ghost { background: transparent; color: var(--purple); border: 2px solid var(--purple); padding: 14px 32px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all .2s; }
+    .btn-ghost:hover { background: var(--purple-light); }
+    .hero-trust { font-size: 13px; color: var(--muted); margin-bottom: 60px; }
+    .hero-trust span { color: var(--purple); font-weight: 600; }
+
+    .hero-demo-preview {
+      background: #fff;
+      border-radius: 20px 20px 0 0;
+      box-shadow: 0 -8px 60px rgba(0,0,0,.1);
+      padding: 28px 28px 0;
+      max-width: 900px;
+      margin: 0 auto;
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+      min-height: 240px;
+    }
+    .demo-card-preview {
+      flex: 1;
+      background: linear-gradient(180deg, #f8f8f8 0%, #eee 100%);
+      border-radius: 12px 12px 0 0;
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: #999;
+      overflow: hidden;
+    }
+    .demo-card-preview img { width: 100%; height: 100%; object-fit: cover; border-radius: 12px 12px 0 0; }
+    .demo-card-preview.result-preview {
+      background: linear-gradient(180deg, var(--purple-light) 0%, #ddd8ff 100%);
+      border: 2px solid var(--purple);
+      border-bottom: none;
+      font-size: 32px;
+    }
+
+    /* STATS BAR */
+    .stats-bar { background: var(--purple); padding: 36px 24px; }
+    .stats-inner { max-width: 1160px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 32px; text-align: center; }
+    .stat-num { font-size: 40px; font-weight: 900; color: #fff; letter-spacing: -1px; }
+    .stat-label { font-size: 14px; color: rgba(255,255,255,.8); margin-top: 4px; }
+
+    /* SECTION BASE */
+    section { padding: 80px 24px; }
+    .container { max-width: 1160px; margin: 0 auto; }
+    .section-tag { font-size: 13px; font-weight: 700; color: var(--purple); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+    .section-title { font-size: clamp(26px, 4vw, 40px); font-weight: 800; letter-spacing: -1px; margin-bottom: 16px; }
+    .section-sub { font-size: 17px; color: var(--muted); max-width: 560px; }
+
+    /* LIVE DEMO */
+    .demo-section { background: #f8faff; }
+    .demo-header { text-align: center; margin-bottom: 48px; }
+    .demo-header .section-sub { margin: 0 auto; }
+    .demo-wrapper {
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 4px 40px rgba(0,0,0,.08);
+      overflow: hidden;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .demo-top { padding: 28px 32px; border-bottom: 1px solid var(--border); }
+    .demo-top h3 { font-size: 18px; font-weight: 700; }
+    .demo-top p { font-size: 14px; color: var(--muted); margin-top: 4px; }
+    .demo-body { display: grid; grid-template-columns: 1fr 1fr; min-height: 480px; }
+    .demo-left { padding: 28px 32px; border-right: 1px solid var(--border); }
+    .demo-right { padding: 28px 32px; display: flex; flex-direction: column; }
+    .demo-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 14px; }
+
+    .garment-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
+    .garment-thumb {
+      aspect-ratio: 3/4;
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2.5px solid transparent;
+      transition: all .2s;
+      position: relative;
+      background: #f0f0f0;
+    }
+    .garment-thumb:hover { border-color: #b8adff; transform: scale(1.03); }
+    .garment-thumb.selected { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(108,92,231,.2); }
+    .garment-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .garment-thumb .check {
+      position: absolute; top: 6px; right: 6px;
+      width: 22px; height: 22px;
+      background: var(--purple); border-radius: 50%;
+      display: none; align-items: center; justify-content: center;
+      font-size: 12px; color: #fff;
+    }
+    .garment-thumb.selected .check { display: flex; }
+
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s;
+      background: #fafafa;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .upload-zone:hover { border-color: var(--purple); background: var(--purple-light); }
+    .upload-zone.has-image { padding: 0; overflow: hidden; }
+    .upload-zone.has-image img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
+    .upload-icon { font-size: 36px; }
+    .upload-zone p { font-size: 14px; color: var(--muted); }
+    .upload-zone strong { font-size: 15px; color: var(--text); }
+    #person-file { display: none; }
+
+    .demo-run-btn {
+      width: 100%;
+      background: var(--purple);
+      color: #fff;
+      border: none;
+      padding: 14px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 16px;
+      transition: all .2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .demo-run-btn:hover:not(:disabled) { background: var(--purple-dark); }
+    .demo-run-btn:disabled { background: #c4bdf5; cursor: not-allowed; }
+
+    .demo-result-area {
+      flex: 1;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #f8f8f8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 320px;
+      position: relative;
+    }
+    .demo-result-area img { width: 100%; height: 100%; object-fit: contain; }
+    .demo-result-placeholder { text-align: center; color: var(--muted); padding: 24px; }
+    .demo-result-placeholder .icon { font-size: 48px; margin-bottom: 12px; }
+    .demo-result-placeholder p { font-size: 14px; }
+    .demo-progress {
+      position: absolute; inset: 0;
+      background: rgba(255,255,255,.9);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+    .demo-progress.visible { display: flex; }
+    .spinner { width: 44px; height: 44px; border: 4px solid #eee; border-top-color: var(--purple); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .progress-text { font-size: 14px; color: var(--muted); font-weight: 500; }
+    .demo-error { background: #fff3f3; color: #c0392b; border: 1px solid #ffcccc; border-radius: 8px; padding: 12px 16px; font-size: 13px; margin-top: 12px; display: none; }
+
+    .demo-footer { padding: 16px 32px; border-top: 1px solid var(--border); background: #fafafa; text-align: center; font-size: 13px; color: var(--muted); }
+    .demo-footer a { color: var(--purple); text-decoration: none; font-weight: 600; }
+
+    /* HOW IT WORKS */
+    .how { background: #fff; }
+    .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 32px; margin-top: 48px; }
+    .step-card { padding: 32px; border-radius: 16px; background: #fafafa; border: 1px solid var(--border); position: relative; }
+    .step-num { width: 44px; height: 44px; background: var(--purple); color: #fff; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; margin-bottom: 20px; }
+    .step-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+    .step-card p { font-size: 15px; color: var(--muted); line-height: 1.7; }
+    .step-connector { display: none; }
+
+    /* BENEFITS */
+    .benefits { background: var(--purple-light); }
+    .benefits-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; margin-top: 48px; }
+    .benefit-list { display: flex; flex-direction: column; gap: 24px; }
+    .benefit-row { display: flex; gap: 16px; }
+    .benefit-icon { width: 44px; height: 44px; background: var(--purple); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+    .benefit-row h4 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .benefit-row p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+    .benefits-visual {
+      background: #fff;
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 8px 40px rgba(108,92,231,.12);
+    }
+    .metric-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border); }
+    .metric-row:last-child { border-bottom: none; }
+    .metric-label { font-size: 14px; color: var(--muted); }
+    .metric-value { font-size: 22px; font-weight: 800; color: var(--purple); }
+    .metric-bar { margin-top: 8px; height: 6px; background: #eee; border-radius: 4px; overflow: hidden; }
+    .metric-fill { height: 100%; background: var(--purple); border-radius: 4px; transition: width 1s ease; }
+
+    /* PRICING */
+    .pricing { background: #fff; }
+    .pricing-header { text-align: center; margin-bottom: 48px; }
+    .pricing-header .section-sub { margin: 0 auto; }
+    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; max-width: 800px; margin: 0 auto; }
+    .price-card { border: 2px solid var(--border); border-radius: 20px; padding: 36px; position: relative; }
+    .price-card.featured { border-color: var(--purple); background: var(--purple-light); }
+    .popular-badge { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: var(--purple); color: #fff; font-size: 12px; font-weight: 700; padding: 4px 16px; border-radius: 20px; white-space: nowrap; }
+    .plan-name { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .plan-desc { font-size: 14px; color: var(--muted); margin-bottom: 28px; }
+    .plan-price { font-size: 44px; font-weight: 900; letter-spacing: -2px; color: var(--text); }
+    .plan-price sup { font-size: 20px; font-weight: 700; vertical-align: super; letter-spacing: 0; }
+    .plan-setup { font-size: 13px; color: var(--muted); margin-top: 4px; margin-bottom: 28px; }
+    .plan-features { list-style: none; margin-bottom: 32px; display: flex; flex-direction: column; gap: 12px; }
+    .plan-features li { font-size: 14px; color: var(--text); display: flex; gap: 10px; align-items: flex-start; }
+    .plan-features li::before { content: "✓"; color: var(--purple); font-weight: 700; flex-shrink: 0; }
+    .plan-btn { width: 100%; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; transition: all .2s; border: 2px solid var(--purple); }
+    .price-card.featured .plan-btn { background: var(--purple); color: #fff; }
+    .price-card:not(.featured) .plan-btn { background: transparent; color: var(--purple); }
+    .price-card.featured .plan-btn:hover { background: var(--purple-dark); }
+    .price-card:not(.featured) .plan-btn:hover { background: var(--purple-light); }
+
+    /* FAQ */
+    .faq { background: #f8faff; }
+    .faq-header { text-align: center; margin-bottom: 48px; }
+    .faq-list { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+    .faq-item { background: #fff; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .faq-q { padding: 20px 24px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 15px; transition: background .2s; }
+    .faq-q:hover { background: #fafafa; }
+    .faq-icon { color: var(--purple); font-size: 18px; transition: transform .3s; flex-shrink: 0; }
+    .faq-item.open .faq-icon { transform: rotate(180deg); }
+    .faq-a { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
+    .faq-item.open .faq-a { max-height: 300px; }
+    .faq-a p { padding: 0 24px 20px; font-size: 14px; color: var(--muted); line-height: 1.8; }
+
+    /* CTA FINAL */
+    .cta-final { background: linear-gradient(135deg, var(--purple) 0%, #4834d4 100%); text-align: center; color: #fff; }
+    .cta-final h2 { font-size: clamp(28px, 4vw, 48px); font-weight: 900; letter-spacing: -1px; margin-bottom: 16px; }
+    .cta-final p { font-size: 18px; opacity: .9; margin-bottom: 36px; }
+    .cta-final .btn-primary { background: #fff; color: var(--purple); }
+    .cta-final .btn-primary:hover { background: #f0f0f0; }
+    .cta-guarantee { font-size: 13px; opacity: .75; margin-top: 16px; }
+
+    /* FOOTER */
+    footer { background: #0f0f1a; color: #aaa; padding: 32px 24px; text-align: center; font-size: 13px; }
+    footer strong { color: #fff; }
+
+    /* MODAL */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 500; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: #fff; border-radius: 20px; padding: 40px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,.2); animation: slideUp .3s; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .modal-close { float: right; font-size: 24px; cursor: pointer; color: #999; background: none; border: none; line-height: 1; }
+    .modal-close:hover { color: #333; }
+    .modal-box h2 { font-size: 24px; font-weight: 800; margin: 8px 0 24px; }
+    .form-field { margin-bottom: 16px; }
+    .form-field label { display: block; font-size: 13px; font-weight: 600; color: #333; margin-bottom: 6px; }
+    .form-field input, .form-field textarea { width: 100%; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; transition: border-color .2s; }
+    .form-field input:focus, .form-field textarea:focus { outline: none; border-color: var(--purple); }
+    .form-field textarea { min-height: 80px; resize: vertical; }
+    .form-submit { width: 100%; background: var(--purple); color: #fff; border: none; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 8px; transition: background .2s; }
+    .form-submit:hover { background: var(--purple-dark); }
+    .form-note { font-size: 12px; color: var(--muted); text-align: center; margin-top: 12px; }
+
+    @media (max-width: 768px) {
+      .demo-body { grid-template-columns: 1fr; }
+      .demo-left { border-right: none; border-bottom: 1px solid var(--border); }
+      .garment-grid { grid-template-columns: repeat(3, 1fr); }
+      .benefits-grid { grid-template-columns: 1fr; }
+      .hero-demo-preview { display: none; }
+    }
+    @media (max-width: 480px) {
+      .hero-actions { flex-direction: column; align-items: center; }
+      .btn-primary, .btn-ghost { width: 100%; max-width: 320px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <div class="logo">Provador<span>Virtual</span></div>
+    <button class="nav-cta" onclick="openModal()">Quero para minha loja</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-badge">Powered by Google Vertex AI</div>
+    <h1>Seus clientes experimentam<br><em>antes de comprar</em></h1>
+    <p class="hero-sub">Adicione um provador virtual com IA na sua loja Shopify. Mais confiança na compra, menos devoluções, mais vendas.</p>
+    <div class="hero-actions">
+      <button class="btn-primary" onclick="document.getElementById('demo').scrollIntoView({behavior:'smooth'})">Testar agora gratis</button>
+      <button class="btn-ghost" onclick="openModal()">Quero para minha loja</button>
+    </div>
+    <p class="hero-trust">Sem cadastro para testar. <span>Resultado em ~15 segundos.</span></p>
+    <div class="hero-demo-preview">
+      <div class="demo-card-preview"><img src="https://images.unsplash.com/photo-1520975954732-35dd22299614?w=300&q=80" alt="Pessoa" onerror="this.parentNode.innerHTML='Foto da cliente'"></div>
+      <div class="demo-card-preview" style="font-size:14px; color:#aaa; text-align:center; padding:20px;">IA processa<br>em segundos</div>
+      <div class="demo-card-preview result-preview">✨</div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stats-inner">
+    <div>
+      <div class="stat-num">+40%</div>
+      <div class="stat-label">aumento de conversão</div>
+    </div>
+    <div>
+      <div class="stat-num">-30%</div>
+      <div class="stat-label">redução em devoluções</div>
+    </div>
+    <div>
+      <div class="stat-num">~15s</div>
+      <div class="stat-label">para ver o resultado</div>
+    </div>
+    <div>
+      <div class="stat-num">100%</div>
+      <div class="stat-label">no-code para Shopify</div>
+    </div>
+  </div>
+</div>
+
+<!-- LIVE DEMO -->
+<section class="demo-section" id="demo">
+  <div class="container">
+    <div class="demo-header">
+      <div class="section-tag">Demo ao vivo</div>
+      <h2 class="section-title">Experimente agora mesmo</h2>
+      <p class="section-sub">Escolha uma peça abaixo, suba uma foto sua e veja como fica em segundos.</p>
+    </div>
+
+    <div class="demo-wrapper">
+      <div class="demo-top">
+        <h3>Provador Virtual</h3>
+        <p>Selecione uma peça e envie sua foto para ver o resultado.</p>
+      </div>
+      <div class="demo-body">
+        <!-- LADO ESQUERDO: escolha a peça -->
+        <div class="demo-left">
+          <div class="demo-label">1. Escolha a peça</div>
+          <div class="garment-grid" id="garment-grid">
+            <div class="garment-thumb selected" data-url="bikini1.webp" onclick="selectGarment(this)">
+              <img src="bikini1.webp" alt="Biquíni 1">
+              <div class="check">✓</div>
+            </div>
+            <div class="garment-thumb" data-url="bikini2.webp" onclick="selectGarment(this)">
+              <img src="bikini2.webp" alt="Biquíni 2">
+              <div class="check">✓</div>
+            </div>
+            <div class="garment-thumb" data-url="bikini3.webp" onclick="selectGarment(this)">
+              <img src="bikini3.webp" alt="Biquíni 3">
+              <div class="check">✓</div>
+            </div>
+            <div class="garment-thumb" data-url="bikini4.webp" onclick="selectGarment(this)">
+              <img src="bikini4.webp" alt="Biquíni 4">
+              <div class="check">✓</div>
+            </div>
+            <div class="garment-thumb" data-url="bikini5.webp" onclick="selectGarment(this)">
+              <img src="bikini5.webp" alt="Biquíni 5">
+              <div class="check">✓</div>
+            </div>
+            <div class="garment-thumb" data-url="bikini6.webp" onclick="selectGarment(this)">
+              <img src="bikini6.webp" alt="Biquíni 6">
+              <div class="check">✓</div>
+            </div>
+          </div>
+
+          <div class="demo-label">2. Sua foto</div>
+          <div class="upload-zone" id="upload-zone" onclick="document.getElementById('person-file').click()">
+            <div class="upload-icon">📸</div>
+            <strong>Clique para enviar sua foto</strong>
+            <p>JPG ou PNG, até 10 MB</p>
+          </div>
+          <input type="file" id="person-file" accept="image/*" onchange="onPersonUpload(event)">
+          <div class="demo-error" id="demo-error"></div>
+          <button class="demo-run-btn" id="demo-btn" disabled onclick="runDemo()">
+            <span id="demo-btn-text">Selecione uma peça e envie sua foto</span>
+          </button>
+        </div>
+
+        <!-- LADO DIREITO: resultado -->
+        <div class="demo-right">
+          <div class="demo-label">Resultado</div>
+          <div class="demo-result-area" id="result-area">
+            <div class="demo-result-placeholder">
+              <div class="icon">✨</div>
+              <p>O resultado vai aparecer aqui</p>
+            </div>
+            <div class="demo-progress" id="demo-progress">
+              <div class="spinner"></div>
+              <div class="progress-text" id="progress-text">Processando com IA...</div>
+            </div>
+          </div>
+          <button class="demo-run-btn" style="margin-top:16px; background:#fff; color:var(--purple); border:2px solid var(--purple);" onclick="openModal()" id="result-cta" style="display:none">
+            Quero isso na minha loja
+          </button>
+        </div>
+      </div>
+      <div class="demo-footer">
+        Suas fotos não são salvas. Processamento seguro via Google Vertex AI.
+        <a href="#" onclick="openModal(); return false;">Quero instalar na minha loja</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how">
+  <div class="container">
+    <div class="section-tag">Como funciona</div>
+    <h2 class="section-title">Do clique ao resultado em 3 passos</h2>
+    <div class="steps">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <h3>Cliente clica em "Experimentar"</h3>
+        <p>O botão aparece automaticamente na página de produto da sua loja Shopify. Sem redirecionamento, sem sair da loja.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <h3>Envia a foto e a IA processa</h3>
+        <p>O cliente envia uma selfie ou foto inteira. Em cerca de 15 segundos, o Google Vertex AI gera a imagem com a roupa.</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <h3>Vê como fica e compra</h3>
+        <p>Com a visão real de como a roupa fica nele, o cliente compra com mais confiança. Você captura o lead automaticamente.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BENEFITS -->
+<section class="benefits">
+  <div class="container">
+    <div class="benefits-grid">
+      <div>
+        <div class="section-tag">Vantagens</div>
+        <h2 class="section-title">Tudo que sua loja precisa para vender mais</h2>
+        <div class="benefit-list">
+          <div class="benefit-row">
+            <div class="benefit-icon">🛍</div>
+            <div>
+              <h4>Mais conversão, menos abandono</h4>
+              <p>Cliente que experimenta virtualmente tem muito mais chance de finalizar a compra. A dúvida "vai ficar bom em mim?" some.</p>
+            </div>
+          </div>
+          <div class="benefit-row">
+            <div class="benefit-icon">📧</div>
+            <div>
+              <h4>Leads capturados automaticamente</h4>
+              <p>Cada uso do provador gera um lead com nome e email. Conecta direto com seu CRM ou email marketing.</p>
+            </div>
+          </div>
+          <div class="benefit-row">
+            <div class="benefit-icon">⚡</div>
+            <div>
+              <h4>Instala em minutos, sem código</h4>
+              <p>App nativo Shopify. Você configura em 10 minutos e já está no ar. Não precisa de desenvolvedor.</p>
+            </div>
+          </div>
+          <div class="benefit-row">
+            <div class="benefit-icon">📊</div>
+            <div>
+              <h4>Dashboard com métricas reais</h4>
+              <p>Veja quantos usos, taxa de conversão pós-provador, leads gerados e ROI em tempo real.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="benefits-visual">
+        <h3 style="font-size:16px; font-weight:700; margin-bottom:20px;">Resultado médio por loja</h3>
+        <div class="metric-row">
+          <div>
+            <div class="metric-label">Aumento de conversão</div>
+            <div class="metric-bar"><div class="metric-fill" style="width:40%"></div></div>
+          </div>
+          <div class="metric-value">+40%</div>
+        </div>
+        <div class="metric-row">
+          <div>
+            <div class="metric-label">Redução de devoluções</div>
+            <div class="metric-bar"><div class="metric-fill" style="width:30%"></div></div>
+          </div>
+          <div class="metric-value">-30%</div>
+        </div>
+        <div class="metric-row">
+          <div>
+            <div class="metric-label">Clientes que usam o provador</div>
+            <div class="metric-bar"><div class="metric-fill" style="width:65%"></div></div>
+          </div>
+          <div class="metric-value">65%</div>
+        </div>
+        <div class="metric-row">
+          <div>
+            <div class="metric-label">Taxa de conversão de leads</div>
+            <div class="metric-bar"><div class="metric-fill" style="width:22%"></div></div>
+          </div>
+          <div class="metric-value">22%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing" id="pricing">
+  <div class="container">
+    <div class="pricing-header">
+      <div class="section-tag">Planos</div>
+      <h2 class="section-title">Preço simples, sem surpresa</h2>
+      <p class="section-sub">Setup único + mensalidade. Sem contrato, cancela quando quiser.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="price-card">
+        <div class="plan-name">Starter</div>
+        <div class="plan-desc">Para lojas que estão começando</div>
+        <div class="plan-price"><sup>R$</sup>197</div>
+        <div class="plan-setup">por mês + R$ 297 setup único</div>
+        <ul class="plan-features">
+          <li>500 usos por mês</li>
+          <li>Widget na loja Shopify</li>
+          <li>Captura de leads</li>
+          <li>Suporte por email</li>
+          <li>Relatório mensal</li>
+        </ul>
+        <button class="plan-btn" onclick="openModal()">Começar agora</button>
+      </div>
+      <div class="price-card featured">
+        <div class="popular-badge">Mais popular</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-desc">Para lojas com volume maior</div>
+        <div class="plan-price"><sup>R$</sup>397</div>
+        <div class="plan-setup">por mês + R$ 497 setup único</div>
+        <ul class="plan-features">
+          <li>2.000 usos por mês</li>
+          <li>Widget customizado com sua marca</li>
+          <li>Captura de leads + integração CRM</li>
+          <li>Dashboard em tempo real</li>
+          <li>Suporte prioritário via WhatsApp</li>
+          <li>Relatórios semanais</li>
+        </ul>
+        <button class="plan-btn" onclick="openModal()">Quero o plano Pro</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq">
+  <div class="container">
+    <div class="faq-header">
+      <div class="section-tag">Dúvidas</div>
+      <h2 class="section-title">Perguntas frequentes</h2>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          <span>Funciona com qualquer tipo de roupa?</span>
+          <span class="faq-icon">▼</span>
+        </div>
+        <div class="faq-a"><p>Sim. Funciona com tops, blusas, vestidos, maiôs, biquínis, calças, saias e macacões. O modelo de IA identifica automaticamente o tipo de peça ou você pode especificar a categoria.</p></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          <span>Como faço a integração com minha loja Shopify?</span>
+          <span class="faq-icon">▼</span>
+        </div>
+        <div class="faq-a"><p>Você instala via App Store da Shopify ou adicionamos um snippet de código via liquid. Em até 10 minutos o botão "Experimentar" já aparece nos seus produtos. Fazemos o setup pra você.</p></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          <span>As fotos dos clientes ficam salvas?</span>
+          <span class="faq-icon">▼</span>
+        </div>
+        <div class="faq-a"><p>Não. As fotos são processadas e descartadas em tempo real. Nenhuma imagem é armazenada nos nossos servidores. Somente o email e nome do lead são salvos, com consentimento explícito do cliente.</p></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          <span>Quanto tempo demora o resultado?</span>
+          <span class="faq-icon">▼</span>
+        </div>
+        <div class="faq-a"><p>Em média 13 a 20 segundos. O processamento usa a infraestrutura do Google Cloud, que aguenta picos de acesso sem perda de velocidade.</p></div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          <span>E se eu precisar de mais usos do que o plano oferece?</span>
+          <span class="faq-icon">▼</span>
+        </div>
+        <div class="faq-a"><p>Você pode fazer upgrade a qualquer momento. Também oferecemos pacotes de usos avulsos por R$ 0,50 por uso excedente no plano Starter e R$ 0,35 no Pro.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section class="cta-final">
+  <div class="container">
+    <h2>Pronto para vender mais?</h2>
+    <p>Instale o Provador Virtual na sua loja e comece a converter mais clientes ainda este mês.</p>
+    <button class="btn-primary" onclick="openModal()">Quero instalar na minha loja</button>
+    <p class="cta-guarantee">Sem contrato. Cancela quando quiser. Suporte incluso.</p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p><strong>Provador Virtual</strong> &copy; 2026. Todos os direitos reservados.</p>
+</footer>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h2>Quero o Provador Virtual</h2>
+    <form onsubmit="submitLead(event)">
+      <div class="form-field">
+        <label>Seu nome</label>
+        <input type="text" id="lead-name" required placeholder="Nome completo">
+      </div>
+      <div class="form-field">
+        <label>Email</label>
+        <input type="email" id="lead-email" required placeholder="seu@email.com">
+      </div>
+      <div class="form-field">
+        <label>Nome da sua loja Shopify</label>
+        <input type="text" id="lead-store" required placeholder="minhaloja.myshopify.com">
+      </div>
+      <div class="form-field">
+        <label>Mensagem (opcional)</label>
+        <textarea id="lead-message" placeholder="Conte sobre sua loja..."></textarea>
+      </div>
+      <button type="submit" class="form-submit">Enviar solicitação</button>
+      <p class="form-note">Respondemos em até 24h por email.</p>
+    </form>
+  </div>
+</div>
+
+<script>
+  const API_URL = 'https://provador-virtual-brown.vercel.app';
+  let selectedGarmentUrl = document.querySelector('.garment-thumb.selected')?.dataset.url || null;
+  let personB64 = null;
+
+  function selectGarment(el) {
+    document.querySelectorAll('.garment-thumb').forEach(t => t.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedGarmentUrl = el.dataset.url;
+    updateDemoBtn();
+  }
+
+  function onPersonUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        const max = 1024;
+        if (w > max || h > max) {
+          if (w > h) { h = Math.round(h * max / w); w = max; }
+          else { w = Math.round(w * max / h); h = max; }
+        }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        personB64 = canvas.toDataURL('image/jpeg', 0.85);
+        const zone = document.getElementById('upload-zone');
+        zone.classList.add('has-image');
+        zone.innerHTML = `<img src="${personB64}" alt="Sua foto">`;
+        updateDemoBtn();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function updateDemoBtn() {
+    const btn = document.getElementById('demo-btn');
+    const txt = document.getElementById('demo-btn-text');
+    if (personB64 && selectedGarmentUrl) {
+      btn.disabled = false;
+      txt.textContent = 'Experimentar agora';
+    } else if (!personB64 && selectedGarmentUrl) {
+      btn.disabled = true;
+      txt.textContent = 'Envie sua foto para continuar';
+    } else {
+      btn.disabled = true;
+      txt.textContent = 'Selecione uma peça e envie sua foto';
+    }
+  }
+
+  async function imgToB64(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Erro ao carregar imagem da peça');
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let w = img.width, h = img.height;
+          const max = 1024;
+          if (w > max || h > max) {
+            if (w > h) { h = Math.round(h * max / w); w = max; }
+            else { w = Math.round(w * max / h); h = max; }
+          }
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function runDemo() {
+    const btn = document.getElementById('demo-btn');
+    const progress = document.getElementById('demo-progress');
+    const progressTxt = document.getElementById('progress-text');
+    const errorEl = document.getElementById('demo-error');
+    const resultArea = document.getElementById('result-area');
+
+    btn.disabled = true;
+    errorEl.style.display = 'none';
+    progress.classList.add('visible');
+    progressTxt.textContent = 'Preparando imagens...';
+
+    try {
+      const garmentB64 = await imgToB64(selectedGarmentUrl);
+      progressTxt.textContent = 'Enviando para a fila...';
+      const res = await fetch(`${API_URL}/api/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ personImage: personB64, garmentImage: garmentB64, category: 'auto' }),
+      });
+      const data = await res.json();
+      if (!data.jobId) throw new Error(data.error || 'Erro ao criar job');
+      progressTxt.textContent = 'Processando com IA... aguarde';
+      pollResult(data.jobId, Date.now(), btn, progress, progressTxt, errorEl, resultArea);
+    } catch (err) {
+      progress.classList.remove('visible');
+      errorEl.textContent = 'Erro: ' + err.message;
+      errorEl.style.display = 'block';
+      btn.disabled = false;
+    }
+  }
+
+  function pollResult(jobId, start, btn, progress, progressTxt, errorEl, resultArea) {
+    if (Date.now() - start > 90000) {
+      progress.classList.remove('visible');
+      errorEl.textContent = 'Tempo esgotado. Tente novamente.';
+      errorEl.style.display = 'block';
+      btn.disabled = false;
+      return;
+    }
+    setTimeout(async () => {
+      try {
+        const r = await fetch(`${API_URL}/api/result?jobId=${jobId}`);
+        const d = await r.json();
+        if (d.status === 'done') {
+          progress.classList.remove('visible');
+          resultArea.innerHTML = `<img src="${d.resultImage}" alt="Resultado" style="width:100%;height:100%;object-fit:contain;border-radius:12px">`;
+          document.getElementById('result-cta').style.display = 'flex';
+          btn.disabled = false;
+          document.getElementById('demo-btn-text').textContent = 'Testar outra peça';
+        } else if (d.status === 'error') {
+          progress.classList.remove('visible');
+          errorEl.textContent = 'Erro do servidor: ' + d.error;
+          errorEl.style.display = 'block';
+          btn.disabled = false;
+        } else {
+          pollResult(jobId, start, btn, progress, progressTxt, errorEl, resultArea);
+        }
+      } catch (_) {
+        pollResult(jobId, start, btn, progress, progressTxt, errorEl, resultArea);
+      }
+    }, 2000);
+  }
+
+  function openModal() {
+    document.getElementById('modal').classList.add('open');
+  }
+  function closeModal(e) {
+    if (!e || e.target === document.getElementById('modal')) {
+      document.getElementById('modal').classList.remove('open');
+    }
+  }
+  function submitLead(e) {
+    e.preventDefault();
+    const name = document.getElementById('lead-name').value;
+    alert(`Obrigado, ${name}! Vamos entrar em contato em breve.`);
+    e.target.reset();
+    closeModal();
+  }
+  function toggleFaq(el) {
+    el.parentElement.classList.toggle('open');
+  }
+</script>
+</body>
+</html>
