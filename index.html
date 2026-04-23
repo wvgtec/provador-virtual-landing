@@ -450,7 +450,7 @@
         </div>
       </div>
       <div class="demo-footer">
-        Suas fotos não são salvas. Processamento seguro via Google Vertex AI.
+        Suas fotos não são salvas. Processamento seguro.
         <a href="#" onclick="openModal(); return false;">Quero instalar na minha loja</a>
       </div>
     </div>
@@ -779,6 +779,8 @@
 
     btn.disabled = true;
     errorEl.style.display = 'none';
+    document.getElementById('result-img').style.display = 'none';
+    document.getElementById('result-placeholder').style.display = 'none';
     progress.classList.add('visible');
     progressTxt.textContent = 'Preparando imagens...';
 
