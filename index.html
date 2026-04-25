@@ -771,8 +771,18 @@
 
 <script>
   const API_URL = 'https://provador-virtual-brown.vercel.app';
+  const CLIENT_KEY = 'pvk_609c700a03c793cc63aef696046c5cc6';
   let selectedGarmentUrl = 'bikini1.webp';
   let personB64 = null;
+
+  function dataURItoBlob(dataURI) {
+    const parts = dataURI.split(',');
+    const mime  = parts[0].match(/:(.*?);/)[1];
+    const raw   = atob(parts[1]);
+    const arr   = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
 
   function selectGarment(el) {
     document.querySelectorAll('.prod').forEach(t => t.classList.remove('active'));
@@ -880,41 +890,12 @@
     document.getElementById('bar-color').style.width = color + '%';
   }
 
-  async function imgToB64(url) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('Erro ao carregar imagem da peça');
-    const blob = await res.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = e => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let w = img.width, h = img.height;
-          const max = 1024;
-          if (w > max || h > max) {
-            if (w > h) { h = Math.round(h * max / w); w = max; }
-            else { w = Math.round(w * max / h); h = max; }
-          }
-          canvas.width = w; canvas.height = h;
-          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', 0.85));
-        };
-        img.onerror = reject;
-        img.src = e.target.result;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  }
-
   async function runDemo() {
-    const btn = document.getElementById('demo-btn');
+    const btn     = document.getElementById('demo-btn');
     const errorEl = document.getElementById('demo-error');
 
     btn.disabled = true;
     btn.classList.remove('ready');
-    document.getElementById('demo-btn-text').textContent = 'Processando…';
     errorEl.style.display = 'none';
     document.getElementById('hud-status').textContent = 'ANALYZING';
     document.getElementById('scan-line').classList.add('active');
@@ -925,21 +906,45 @@
     setStep(1);
 
     try {
-      const garmentB64 = await imgToB64(selectedGarmentUrl);
-      setStep(2);
-      document.getElementById('demo-btn-text').textContent = 'Enviando para a fila…';
+      document.getElementById('demo-btn-text').textContent = 'Preparando upload…';
+      const urlRes = await fetch(API_URL + '/api/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientKey: CLIENT_KEY, contentType: 'image/jpeg' }),
+      });
+      const urlData = await urlRes.json();
+      if (!urlData.signedUrl) throw new Error(urlData.error || 'Erro ao obter URL de upload');
 
+      setStep(2);
+      document.getElementById('demo-btn-text').textContent = 'Enviando foto…';
+      const blob = dataURItoBlob(personB64);
+      const putRes = await fetch(urlData.signedUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'image/jpeg' },
+        body: blob,
+      });
+      if (!putRes.ok) throw new Error('Falha no upload (GCS ' + putRes.status + ')');
+
+      setStep(3);
+      document.getElementById('demo-btn-text').textContent = 'Enviando para a fila…';
       const res = await fetch(API_URL + '/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ personImage: personB64, garmentImage: garmentB64, category: 'auto' }),
+        body: JSON.stringify({
+          personImageUrl:  urlData.gcsUrl,
+          garmentImageUrl: API_URL + '/' + selectedGarmentUrl,
+          category:        'auto',
+          clientKey:       CLIENT_KEY,
+          productUrl:      API_URL + '/' + selectedGarmentUrl,
+        }),
       });
       const data = await res.json();
       if (!data.jobId) throw new Error(data.error || 'Erro ao criar job');
 
-      setStep(3);
-      document.getElementById('demo-btn-text').textContent = 'Renderizando…';
+      setStep(4);
+      document.getElementById('demo-btn-text').textContent = 'A IA está trabalhando…';
       pollResult(data.jobId, Date.now(), btn, errorEl);
+
     } catch (err) {
       document.getElementById('scan-line').classList.remove('active');
       errorEl.textContent = 'Erro: ' + err.message;
