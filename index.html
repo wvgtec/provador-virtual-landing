@@ -932,10 +932,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           personImageUrl:  urlData.gcsUrl,
-          garmentImageUrl: API_URL + '/' + selectedGarmentUrl,
+          garmentImageUrl: new URL(selectedGarmentUrl, window.location.href).href,
           category:        'auto',
           clientKey:       CLIENT_KEY,
-          productUrl:      API_URL + '/' + selectedGarmentUrl,
+          productUrl:      new URL(selectedGarmentUrl, window.location.href).href,
         }),
       });
       const data = await res.json();
