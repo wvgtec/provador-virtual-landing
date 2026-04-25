@@ -86,9 +86,12 @@
     .stat .l { font-size: 13px; color: var(--muted); margin-top: 6px; font-weight: 500; }
 
     .hero-right { position: relative; min-height: 420px; }
-    .hero-card { position: relative; border-radius: 24px; overflow: hidden; border: 1.5px solid var(--ink); background: var(--cream); aspect-ratio: 4/5; box-shadow: 8px 8px 0 0 var(--ink); }
+    .hero-card { position: relative; border-radius: 24px; overflow: hidden; border: 1.5px solid var(--ink); background: var(--ink); aspect-ratio: 9/16; box-shadow: 8px 8px 0 0 var(--ink); }
+    .hero-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; }
     .hero-ph { width: 100%; height: 100%; background: repeating-linear-gradient(135deg, rgba(10,10,10,0.05) 0 2px, transparent 2px 14px), linear-gradient(160deg, var(--cream), #EFE8D2); display: flex; align-items: flex-end; padding: 20px; }
     .hero-ph .label { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+    .hero-scan { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: 24px; }
+    .hero-scan::after { content: ""; position: absolute; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, rgba(255,227,78,0.8), transparent); animation: scanline 3s ease-in-out infinite; }
     .hero-badge { position: absolute; top: 16px; left: 16px; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: var(--yellow); border: 1.5px solid var(--ink); font-weight: 600; font-size: 12px; }
     .hero-meta { position: absolute; bottom: 16px; right: 16px; padding: 10px 14px; border-radius: 10px; background: var(--ink); color: #fff; font-family: "JetBrains Mono", monospace; font-size: 11px; letter-spacing: 0.05em; }
 
@@ -308,12 +311,18 @@
       section { padding: 48px 0; }
       .wrap { padding: 0 20px; }
       .studio-head, .studio-grid { padding-left: 20px; padding-right: 20px; }
-      h1.display { font-size: clamp(36px,10vw,56px); }
-      .stat-row { gap: 20px; }
+      h1.display { font-size: clamp(32px,9vw,48px); line-height: 1.08; }
+      .sub { font-size: 16px; max-width: 100%; }
+      .pill { font-size: 11px; }
+      .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; }
+      .stat .n { font-size: 28px; }
+      .hero-right { min-height: unset; }
+      .hero-card { max-width: 320px; margin: 0 auto; }
     }
     @media (max-width: 480px) {
       .hero-cta { flex-direction: column; }
-      .btn { width: 100%; justify-content: center; }
+      .hero-cta .btn { width: 100%; justify-content: center; }
+      h1.display { font-size: clamp(28px,8.5vw,42px); }
     }
   </style>
 </head>
@@ -363,14 +372,14 @@
     </div>
     <div class="hero-right rise" style="animation-delay:.2s">
       <div class="hero-card">
-        <div class="hero-ph"><span class="label">→ render de demonstração · live</span></div>
-        <div style="position:absolute;inset:14%;border-radius:14px;overflow:hidden;background:radial-gradient(ellipse at 50% 20%, #E8D9BA 0 14%, transparent 22%),radial-gradient(ellipse at 50% 58%, #FFE34E 0 30%, transparent 50%),linear-gradient(180deg,#E6D9B8,#B8A67D);border:1.5px solid #0A0A0A">
-          <div style="position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.04em">
-            <span style="background:#0A0A0A;color:#fff;padding:4px 8px;border-radius:4px">● RENDER</span>
-            <span style="background:#FFE34E;color:#0A0A0A;padding:4px 8px;border-radius:4px;border:1px solid #0A0A0A">FIT 96%</span>
-          </div>
-        </div>
+        <!-- Substitua demo-tryon.mp4 pelo seu vídeo de demonstração -->
+        <video class="hero-video" src="video-hero.mp4" autoplay muted loop playsinline></video>
+        <div class="hero-scan"></div>
         <div class="hero-badge">✦ ao vivo</div>
+        <div style="position:absolute;top:16px;right:16px;display:flex;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.04em">
+          <span style="background:#0A0A0A;color:#fff;padding:5px 10px;border-radius:6px">● RENDER</span>
+          <span style="background:#FFE34E;color:#0A0A0A;padding:5px 10px;border-radius:6px;border:1px solid #0A0A0A">FIT 96%</span>
+        </div>
         <div class="hero-meta">v4.2 · 2.4s</div>
       </div>
     </div>
@@ -553,57 +562,16 @@
   </div>
 </section>
 
-<!-- FIDELITY -->
-<section id="fidelidade">
-  <div class="wrap">
-    <div class="fidelity-box">
-      <div class="blob blob-f1 float"></div>
-      <div class="fidelity-inner">
-        <div class="eyebrow">03 · Fidelidade</div>
-        <h2 class="section-title">Mesma peça. Mesmo tecido. <em class="hl-lilac">Novo corpo.</em></h2>
-        <p class="section-sub">Comparamos cada render contra a foto original de catálogo. O resultado: caimento que sua equipe de styling reconhece.</p>
-        <div class="compare-row">
-          <div class="compare-card">
-            <div class="compare-ph ph-input"></div>
-            <h5>Foto do catálogo</h5>
-            <p>INPUT · 2048×3072</p>
-          </div>
-          <div class="compare-card">
-            <div class="compare-ph ph-garment">
-              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.04em;background:rgba(255,227,78,0.7)">SEGMENTING · 98ms</div>
-            </div>
-            <h5>Extração IA</h5>
-            <p>MASK · 512 segmentos</p>
-          </div>
-          <div class="compare-card">
-            <div class="compare-ph ph-output">
-              <div style="position:absolute;top:10px;right:10px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;background:var(--yellow);padding:4px 8px;border-radius:6px;border:1.5px solid var(--ink);letter-spacing:0.04em">FIT 96%</div>
-            </div>
-            <h5>Render final</h5>
-            <p>OUTPUT · corpo real</p>
-          </div>
-        </div>
-        <div class="fidelity-list">
-          <div class="fi"><div class="fn">512</div><div class="fl">pontos de referência de pose por frame</div></div>
-          <div class="fi"><div class="fn">2.4s</div><div class="fl">render médio em GPU otimizada</div></div>
-          <div class="fi"><div class="fn">4K</div><div class="fl">resolução máxima de saída</div></div>
-          <div class="fi"><div class="fn">99%</div><div class="fl">fidelidade de cor validada</div></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- HOW IT WORKS -->
 <section id="como">
   <div class="wrap">
-    <div class="eyebrow">04 · Como funciona</div>
+    <div class="eyebrow">03 · Como funciona</div>
     <h2 class="section-title">Três passos do catálogo ao <em class="hl-yellow">carrinho convertido</em>.</h2>
     <div class="how-grid">
       <div class="how-card">
         <div class="how-num">01</div>
-        <h4>Cadastre seu catálogo</h4>
-        <p>Arraste suas fotos de vitrine. Não precisa de modelo 3D, mannequin ou photoshoot novo — funciona com o que você já tem.</p>
+        <h4>Zero cadastro de catálogo</h4>
+        <p>Não precisa cadastrar nada. O sistema reconhece automaticamente a foto do produto no seu site e renderiza diretamente na foto da modelo.</p>
         <div class="how-arrow">→</div>
       </div>
       <div class="how-card">
@@ -625,7 +593,7 @@
 <!-- TESTIMONIALS -->
 <section id="clientes">
   <div class="wrap">
-    <div class="eyebrow">05 · Clientes</div>
+    <div class="eyebrow">04 · Clientes</div>
     <h2 class="section-title">Lojistas que já estão <em class="hl-pink">vendendo com Mirage</em>.</h2>
     <div class="tests">
       <div class="test">
@@ -664,7 +632,7 @@
       <div class="blob blob-l2 float" style="animation-delay:1s"></div>
       <div class="leadform-inner">
         <div>
-          <div class="eyebrow">06 · Demonstração</div>
+          <div class="eyebrow">05 · Demonstração</div>
           <h2>Pare de perder venda para o <em>"será que cai bem?"</em></h2>
           <p class="section-sub" style="color:var(--ink);opacity:.75">Receba uma demo personalizada com seu catálogo em menos de 48h. Plano gratuito para começar, sem cartão.</p>
           <div style="display:flex;gap:18px;margin-top:24px;flex-wrap:wrap">
@@ -709,7 +677,7 @@
 <!-- FAQ -->
 <section id="faq">
   <div class="wrap">
-    <div class="eyebrow">07 · FAQ</div>
+    <div class="eyebrow">06 · FAQ</div>
     <h2 class="section-title">Perguntas que todo <em class="hl-yellow">lojista faz antes</em>.</h2>
     <div class="faq-list">
       <div class="faq-item" onclick="toggleFaq(this)">
