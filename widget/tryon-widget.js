@@ -88,8 +88,9 @@
     #nksw-upload-label { font-size: 14px; font-weight: 600; color: #1a1a1a; }
     #nksw-upload-hint { font-size: 12px; color: #999; margin-top: 6px; line-height: 1.5; }
     #nksw-preview-img {
-      width: 100%; max-height: 220px; object-fit: cover;
+      width: 100%; max-height: 260px; object-fit: contain;
       border-radius: 12px; display: none; margin-bottom: 10px;
+      background: #f5f5f5;
     }
 
     /* Botão principal */
@@ -648,7 +649,7 @@
 
   function show(id) {
     const el = document.getElementById(id);
-    if (el) el.style.display = '';
+    if (el) el.style.display = 'block';
   }
 
   function hide(id) {
