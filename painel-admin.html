@@ -389,7 +389,8 @@
   let apiUrl   = '';
   let clients  = [];
   let allLeads = [];
-  let snippetClientKey = '';
+  let snippetClientKey  = '';
+  let snippetStoreName  = '';
   let loginMode = 'admin'; // 'admin' | 'client'
   let currentRole = 'admin';
   let currentClientKey = '';
@@ -597,7 +598,7 @@
         <td><span class="badge ${c.active ? 'badge-active' : 'badge-inactive'}">${c.active ? 'Ativo' : 'Inativo'}</span></td>
         <td>
           <div class="td-actions">
-            <button class="btn btn-sm btn-copy"    data-key="${escHtml(c.key)}" onclick="showSnippet(this.dataset.key)">Snippet</button>
+            <button class="btn btn-sm btn-copy"    data-key="${escHtml(c.key)}" data-store="${escHtml(c.store || c.name)}" onclick="showSnippet(this.dataset.key, this.dataset.store)">Snippet</button>
             <button class="btn btn-sm btn-copy"    data-key="${escHtml(c.key)}" onclick="openClientPanel(this.dataset.key)">Painel</button>
             <button class="btn btn-sm btn-copy"    data-key="${escHtml(c.key)}" data-name="${escHtml(c.name)}" onclick="viewClientLeads(this.dataset.key, this.dataset.name)">Leads</button>
             <button class="btn btn-sm ${c.active ? 'btn-danger' : 'btn-success'}" data-key="${escHtml(c.key)}" onclick="toggleClient(this.dataset.key)">${c.active ? 'Suspender' : 'Ativar'}</button>
@@ -825,15 +826,17 @@
   }
 
   // ── Snippets ───────────────────────────────────────────────────────────────
-  const widgetUrl = () => apiUrl + '/widget/tryon-widget.js';
+  const WIDGET_VERSION = '5.0';
+  const widgetUrl = () => `${apiUrl}/widget/tryon-widget.js?v=${WIDGET_VERSION}`;
   const BTN_BLOCK = `  /* Personalizacao opcional:
   window.VTON_BTN_TEXT   = 'Experimentar virtualmente';
   window.VTON_BTN_BG     = '#1a1a1a';
   window.VTON_BTN_COLOR  = '#ffffff'; */`;
 
-  function buildSnippet(platform, key) {
-    const base = apiUrl;
-    const wUrl = widgetUrl();
+  function buildSnippet(platform, key, storeName) {
+    const base  = apiUrl;
+    const wUrl  = widgetUrl();
+    const store = storeName || 'Minha Loja';
     const garments = {
       shopify:       "{{ product.featured_image | img_url: 'master' }}",
       nuvemshop:     '{product.featured_image.src}',
@@ -846,6 +849,7 @@
       return `<script>
   window.VTON_API_URL    = '${base}';
   window.VTON_CLIENT_KEY = '${key}';
+  window.VTON_STORE_NAME = '${store}';
   window.addEventListener('load', function() {
     var img = document.querySelector('[class*="productImageTag"]')
            || document.querySelector('[class*="product-image"] img');
@@ -861,6 +865,7 @@ ${BTN_BLOCK}
   window.VTON_API_URL     = '${base}';
   window.VTON_CLIENT_KEY  = '${key}';
   window.VTON_GARMENT_URL = '${garments[platform] || garments.shopify}';
+  window.VTON_STORE_NAME  = '${store}';
 ${BTN_BLOCK}
 <\/script>
 <div id="vton-anchor"><\/div>
@@ -872,8 +877,9 @@ ${BTN_BLOCK}
     window.open(url, '_blank');
   }
 
-  function showSnippet(key) {
+  function showSnippet(key, store) {
     snippetClientKey = key;
+    snippetStoreName = store || '';
     updateSnippet();
     document.getElementById('snippet-modal').classList.add('open');
   }
@@ -882,7 +888,7 @@ ${BTN_BLOCK}
     const platform = document.getElementById('snippet-platform').value;
     const box = document.getElementById('snippet-content');
     const btn = box.querySelector('.snippet-copy');
-    box.textContent = buildSnippet(platform, snippetClientKey);
+    box.textContent = buildSnippet(platform, snippetClientKey, snippetStoreName);
     box.appendChild(btn);
   }
 
