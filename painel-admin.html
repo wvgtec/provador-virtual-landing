@@ -274,6 +274,10 @@ tbody tr:hover td { background: #fafbff; }
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Jobs
       </div>
+      <div class="nav-item" onclick="navigate('produtos', this)">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+        Produtos
+      </div>
       <div class="sidebar-label">Financeiro</div>
       <div class="nav-item" onclick="navigate('billing', this)">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
@@ -412,6 +416,22 @@ tbody tr:hover td { background: #fafbff; }
         </div>
       </div>
 
+      <!-- PRODUTOS / PLANOS -->
+      <div class="view" id="view-produtos">
+        <div class="card">
+          <div class="card-header">
+            <h3>Planos cadastrados</h3>
+            <button class="btn btn-primary btn-sm" onclick="openPlanModal()">+ Novo plano</button>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Nome</th><th>Tryons incluídos</th><th>Excedente / tryon</th><th>Valor mensal</th><th>Ações</th></tr>
+            </thead>
+            <tbody id="plans-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- BILLING -->
       <div class="view" id="view-billing">
         <div class="billing-grid" id="billing-kpis"></div>
@@ -520,6 +540,36 @@ tbody tr:hover td { background: #fafbff; }
   </div>
 </div>
 
+<div class="modal-bg" id="modal-produto" onclick="closeModalBg(event,'modal-produto')">
+  <div class="modal-box" style="max-width:440px">
+    <h2 id="modal-produto-title">Novo plano</h2>
+    <input type="hidden" id="produto-edit-id">
+    <div class="field">
+      <label>Nome do plano</label>
+      <input type="text" id="produto-nome" placeholder="Ex: Starter, Pro, Growth..." style="width:100%;padding:10px 12px;font-size:14px;border:1px solid var(--border);border-radius:8px;background:var(--bg)">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="field">
+        <label>Tryons incluídos</label>
+        <input type="number" id="produto-tryons" placeholder="Ex: 100" min="1" style="width:100%;padding:10px 12px;font-size:14px;border:1px solid var(--border);border-radius:8px;background:var(--bg)">
+      </div>
+      <div class="field">
+        <label>Valor mensal (R$)</label>
+        <input type="number" id="produto-preco" placeholder="Ex: 49.90" min="0" step="0.01" style="width:100%;padding:10px 12px;font-size:14px;border:1px solid var(--border);border-radius:8px;background:var(--bg)">
+      </div>
+    </div>
+    <div class="field">
+      <label>Tryon excedente (R$ por tryon)</label>
+      <input type="number" id="produto-excedente" placeholder="Ex: 0.75" min="0" step="0.01" style="width:100%;padding:10px 12px;font-size:14px;border:1px solid var(--border);border-radius:8px;background:var(--bg)">
+    </div>
+    <div id="modal-produto-err" style="color:var(--danger);font-size:13px;margin-bottom:8px;display:none;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-produto')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveProduto()">Salvar plano</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -605,6 +655,7 @@ const VIEW_TITLES = {
   clients:        'Clientes',
   'client-detail': 'Detalhe do cliente',
   jobs:           'Jobs',
+  produtos:       'Produtos / Planos',
   billing:        'Billing',
   settings:       'Configurações',
 };
@@ -632,6 +683,9 @@ function navigate(view, navEl) {
   } else if (view === 'jobs') {
     ta.innerHTML = `<button class="btn btn-secondary btn-sm" onclick="loadJobs()">Atualizar</button>`;
     loadJobs();
+  } else if (view === 'produtos') {
+    ta.innerHTML = `<button class="btn btn-primary btn-sm" onclick="openPlanModal()">+ Novo plano</button>`;
+    loadProdutos();
   }
 }
 
@@ -1070,6 +1124,84 @@ function renderBilling() {
       <td style="font-weight:700;color:var(--primary)">$${total.toFixed(2)}</td>
     </tr>`;
   }).join('');
+}
+
+// ─── Produtos / Planos ─────────────────────────────────────────────────────────
+let produtosCache = [];
+
+async function loadProdutos() {
+  const r = await apiFetch('listPlans');
+  if (!r.ok) { toast('Erro ao carregar planos.', 'error'); return; }
+  produtosCache = r.plans || [];
+  renderProdutos();
+}
+
+function renderProdutos() {
+  const tbody = document.getElementById('plans-tbody');
+  if (!produtosCache.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted);">Nenhum plano cadastrado ainda.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = produtosCache.map(p => `
+    <tr>
+      <td><strong>${esc(p.name)}</strong> <span style="font-size:11px;color:var(--muted);margin-left:4px;">${esc(p.id)}</span></td>
+      <td>${p.tryons === 0 ? 'Ilimitado' : Number(p.tryons).toLocaleString('pt-BR')}</td>
+      <td>R$ ${Number(p.overage).toFixed(2)}</td>
+      <td>R$ ${Number(p.price).toFixed(2)}/mês</td>
+      <td style="display:flex;gap:6px;">
+        <button class="btn btn-secondary btn-sm" onclick="openPlanModal('${esc(p.id)}')">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteProduto('${esc(p.id)}','${esc(p.name)}')">Excluir</button>
+      </td>
+    </tr>`).join('');
+
+  // Atualiza o select de trocar plano do cliente
+  const sel = document.getElementById('change-plan-select');
+  if (sel) {
+    sel.innerHTML = produtosCache.map(p =>
+      `<option value="${esc(p.id)}">${esc(p.name)} (${p.tryons === 0 ? 'Ilimitado' : p.tryons} tryons / R$ ${Number(p.price).toFixed(2)})</option>`
+    ).join('');
+  }
+}
+
+function openPlanModal(id = null) {
+  const plan = id ? produtosCache.find(p => p.id === id) : null;
+  document.getElementById('modal-produto-title').textContent = plan ? 'Editar plano' : 'Novo plano';
+  document.getElementById('produto-edit-id').value = plan ? plan.id : '';
+  document.getElementById('produto-nome').value      = plan ? plan.name    : '';
+  document.getElementById('produto-tryons').value    = plan ? plan.tryons  : '';
+  document.getElementById('produto-preco').value     = plan ? plan.price   : '';
+  document.getElementById('produto-excedente').value = plan ? plan.overage : '';
+  document.getElementById('modal-produto-err').style.display = 'none';
+  openModal('modal-produto');
+}
+
+async function saveProduto() {
+  const id       = document.getElementById('produto-edit-id').value.trim();
+  const name     = document.getElementById('produto-nome').value.trim();
+  const tryons   = Number(document.getElementById('produto-tryons').value);
+  const price    = Number(document.getElementById('produto-preco').value);
+  const overage  = Number(document.getElementById('produto-excedente').value);
+  const errEl    = document.getElementById('modal-produto-err');
+
+  if (!name) { errEl.textContent = 'Nome é obrigatório.'; errEl.style.display='block'; return; }
+  if (isNaN(tryons) || tryons < 0) { errEl.textContent = 'Tryons inválido.'; errEl.style.display='block'; return; }
+  if (isNaN(price)  || price  < 0) { errEl.textContent = 'Valor inválido.';  errEl.style.display='block'; return; }
+  if (isNaN(overage)|| overage< 0) { errEl.textContent = 'Excedente inválido.'; errEl.style.display='block'; return; }
+
+  const action = id ? 'updatePlan' : 'createPlan';
+  const r = await apiFetch(action, { id: id || undefined, name, tryons, price, overage });
+  if (!r.ok) { errEl.textContent = r.error || 'Erro ao salvar.'; errEl.style.display='block'; return; }
+  closeModal('modal-produto');
+  toast(id ? 'Plano atualizado!' : 'Plano criado!', 'success');
+  await loadProdutos();
+}
+
+async function deleteProduto(id, name) {
+  if (!confirm(`Excluir o plano "${name}"? Clientes nesse plano não serão afetados.`)) return;
+  const r = await apiFetch('deletePlan', { id });
+  if (!r.ok) { toast(r.error || 'Erro ao excluir.', 'error'); return; }
+  toast('Plano excluído.', 'success');
+  await loadProdutos();
 }
 
 // ─── Settings ──────────────────────────────────────────────────────────────────

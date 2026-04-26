@@ -161,10 +161,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--bg)}
         <svg fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/></svg>
         Dashboard
       </div>
-      <div class="nav-item" onclick="nav('geracoes')">
-        <svg fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" stroke="currentColor" stroke-width="2"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        Gerações
-      </div>
+
       <div class="nav-item" onclick="nav('produtos')">
         <svg fill="none" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         Produtos
@@ -239,20 +236,6 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--bg)}
         </div>
       </div>
 
-      <div id="view-geracoes" class="view">
-        <div class="filter-bar">
-          <select id="jobsStatus" onchange="st.jobsPage=1;loadJobs()">
-            <option value="">Todos os status</option>
-            <option value="done">Concluído</option>
-            <option value="pending">Pendente</option>
-            <option value="processing">Processando</option>
-            <option value="error">Erro</option>
-          </select>
-          <span id="jobsCount" class="text-muted" style="font-size:13px;"></span>
-        </div>
-        <div id="jobsGrid" class="jobs-grid"></div>
-        <div id="jobsPagination" style="display:flex;gap:8px;margin-top:20px;align-items:center;justify-content:center;"></div>
-      </div>
 
       <div id="view-produtos" class="view">
         <div class="card">
@@ -335,7 +318,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--bg)}
           </div>
           <div class="card">
             <div class="card-header"><div class="card-title">Estimativa deste mês</div></div>
-            <div style="margin-bottom:14px;"><div class="billing-total" id="billingTotal">$0</div><div class="text-muted" style="font-size:12px;margin-top:4px;" id="billingTotalSub">-</div></div>
+            <div style="margin-bottom:14px;"><div class="billing-total" id="billingTotal">R$ 0</div><div class="text-muted" style="font-size:12px;margin-top:4px;" id="billingTotalSub">-</div></div>
             <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span id="billingUsageLabel">-</span><span id="billingUsagePct" class="fw-600">-</span></div>
             <div class="progress-wrap" style="margin-bottom:14px;"><div class="progress-fill ok" id="billingProgress" style="width:0%"></div></div>
             <div class="info-row"><span class="info-row-label">Plano base</span><span class="info-row-value" id="billingBase">-</span></div>
@@ -426,11 +409,11 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--bg)}
 const API_URL = 'https://provador-virtual-brown.vercel.app';
 
 const PLANS = {
-  starter:    { name:'Starter',    limit:100,      price:9,   overage:0.15, color:'#6B7280' },
-  pro:        { name:'Pro',        limit:500,      price:29,  overage:0.08, color:'#635BFF' },
-  growth:     { name:'Growth',     limit:1000,     price:49,  overage:0.04, color:'#16A34A' },
-  scale:      { name:'Scale',      limit:5000,     price:149, overage:0.02, color:'#F59E0B' },
-  enterprise: { name:'Enterprise', limit:Infinity, price:499, overage:0,    color:'#0A0A0A' },
+  starter:    { name:'Starter',    limit:100,      price:49,    overage:0.75, color:'#6B7280' },
+  pro:        { name:'Pro',        limit:500,      price:149,   overage:0.40, color:'#635BFF' },
+  growth:     { name:'Growth',     limit:1000,     price:249,   overage:0.20, color:'#16A34A' },
+  scale:      { name:'Scale',      limit:5000,     price:749,   overage:0.10, color:'#F59E0B' },
+  enterprise: { name:'Enterprise', limit:Infinity, price:2499,  overage:0,    color:'#0A0A0A' },
 };
 
 const st = {
@@ -485,7 +468,7 @@ async function startApp() {
   const c = st.client;
   const plan = PLANS[c.plan] || PLANS.starter;
   document.getElementById('sidebarStoreName').textContent = c.name || c.store || 'Minha loja';
-  document.getElementById('sidebarPlan').textContent = `${plan.name} — $${plan.price}/mês`;
+  document.getElementById('sidebarPlan').textContent = `${plan.name} — R$ ${plan.price}/mês`;
   document.getElementById('cfgName').value  = c.name  || '';
   document.getElementById('cfgEmail').value = c.email || '';
   document.getElementById('cfgStore').value = c.store || '';
@@ -526,22 +509,22 @@ async function loadDashboard() {
   const pct  = b.limit===Infinity ? 0 : Math.round((b.usage/b.limit)*100);
   let alertsHtml='';
   if (pct>=100) alertsHtml += mkAlert('error','⛔','Limite atingido — novas gerações estão bloqueadas',`Você usou ${b.usage} de ${b.limit} gerações.`,'<button class="btn btn-sm btn-danger" onclick="nav(\'billing\')">Fazer upgrade</button>');
-  else if (pct>=80) alertsHtml += mkAlert('warning','⚠️',`${pct}% do limite usado`,`Estimativa: $${b.total}.`,'<button class="btn btn-sm btn-warning" onclick="nav(\'billing\')">Ver billing</button>');
+  else if (pct>=80) alertsHtml += mkAlert('warning','⚠️',`${pct}% do limite usado`,`Estimativa: R$ ${b.total}.`,'<button class="btn btn-sm btn-warning" onclick="nav(\'billing\')">Ver billing</button>');
   if (st.invoices.some(i=>i.status==='pending'||i.status==='open')) alertsHtml += mkAlert('error','🧾','Fatura pendente','Regularize para evitar suspensão.','<button class="btn btn-sm btn-danger" onclick="nav(\'billing\')">Pagar agora</button>');
   document.getElementById('dashAlerts').innerHTML = alertsHtml;
   const rem = b.limit===Infinity ? '∞' : Math.max(0, b.limit-b.usage);
   document.getElementById('dashKpis').innerHTML = `
     <div class="kpi-card"><div class="kpi-label">Gerações usadas</div><div class="kpi-value ${pct>=100?'text-error':pct>=80?'text-warning':''}">${b.usage}</div><div class="kpi-sub">de ${b.limit===Infinity?'∞':b.limit} no plano</div></div>
     <div class="kpi-card"><div class="kpi-label">Restantes</div><div class="kpi-value">${rem}</div><div class="kpi-sub">até o fim do ciclo</div></div>
-    <div class="kpi-card"><div class="kpi-label">Custo estimado</div><div class="kpi-value">$${b.total}</div><div class="kpi-sub">próx. cobrança ${fmtDate(b.nextDate)}</div></div>`;
-  document.getElementById('dashPlanSub').textContent = `Plano ${plan.name} — $${plan.price}/mês`;
+    <div class="kpi-card"><div class="kpi-label">Custo estimado</div><div class="kpi-value">R$ ${b.total}</div><div class="kpi-sub">próx. cobrança ${fmtDate(b.nextDate)}</div></div>`;
+  document.getElementById('dashPlanSub').textContent = `Plano ${plan.name} — R$ ${plan.price}/mês`;
   document.getElementById('dashUsageLabel').textContent = `${b.usage} / ${b.limit===Infinity?'∞':b.limit} gerações`;
   document.getElementById('dashUsagePct').textContent = pct+'%';
   const prog = document.getElementById('dashProgress');
   prog.style.width = Math.min(100,pct)+'%';
   prog.className = 'progress-fill '+(pct>=100?'over':pct>=80?'warn':'ok');
-  document.getElementById('dashOverage').textContent = b.overageAmt>0 ? `$${b.overageAmt} (${b.excess} × $${b.overage})` : 'Nenhum';
-  document.getElementById('dashTotal').textContent = `$${b.total}`;
+  document.getElementById('dashOverage').textContent = b.overageAmt>0 ? `R$ ${b.overageAmt} (${b.excess} × R$ ${b.overage})` : 'Nenhum';
+  document.getElementById('dashTotal').textContent = `R$ ${b.total}`;
   document.getElementById('dashNextDate').textContent = fmtDate(b.nextDate);
   const jr = await api('client','jobs',{limit:6});
   const dj = document.getElementById('dashRecentJobs');
@@ -584,15 +567,16 @@ async function loadProducts() {
   if (!r.ok||!r.products?.length) { document.getElementById('productsTbody').innerHTML='<tr><td colspan="4" class="text-muted" style="text-align:center;padding:24px;">Nenhum dado de produto ainda.</td></tr>'; return; }
   const products=r.products, total=products.reduce((s,p)=>s+p.count,0);
   if (productsChart) { productsChart.destroy(); productsChart=null; }
-  const labels = products.slice(0,10).map(p=>{ try{ return new URL(p.url).pathname.split('/').filter(Boolean).pop()||p.url.slice(0,20); }catch{ return p.url.slice(0,20); } });
+  const displayName = p => (p.name && p.name !== p.url) ? p.name : (() => { try { const u=new URL(p.url); return u.hostname+u.pathname; } catch { return p.url.slice(0,60); } })();
+  const labels = products.slice(0,10).map(p => displayName(p).slice(0,40));
   productsChart = new Chart(document.getElementById('productsChart').getContext('2d'), {
     type:'bar',
-    data:{ labels, datasets:[{ label:'Gerações', data:products.slice(0,10).map(p=>p.count), backgroundColor:'#635BFF', borderRadius:6 }] },
+    data:{ labels, datasets:[{ label:'Tryons', data:products.slice(0,10).map(p=>p.count), backgroundColor:'#635BFF', borderRadius:6 }] },
     options:{ responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } } },
   });
   document.getElementById('productsTbody').innerHTML = products.map((p,i)=>{
-    let label=p.url; try{ const u=new URL(p.url); label=u.hostname+u.pathname; }catch{}
-    return `<tr><td>${i+1}</td><td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.url)}">${esc(label)}</td><td><strong>${p.count}</strong></td><td>${total?Math.round((p.count/total)*100):0}%</td></tr>`;
+    const label = displayName(p);
+    return `<tr><td>${i+1}</td><td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.url)}"><a href="${esc(p.url)}" target="_blank" style="color:var(--primary);text-decoration:underline;">${esc(label)}</a></td><td><strong>${p.count}</strong></td><td>${total?Math.round((p.count/total)*100):0}%</td></tr>`;
   }).join('');
 }
 
@@ -701,30 +685,30 @@ function renderBilling() {
   let alertsHtml='';
   if (!b.stripeEnabled) alertsHtml += mkAlert('info','ℹ️','Stripe não configurado','Os valores são estimativas. Entre em contato para ativar pagamentos automáticos.');
   if (pct>=100) alertsHtml += mkAlert('error','⛔','Limite atingido','Novas gerações bloqueadas até upgrade.','<button class="btn btn-sm btn-danger" onclick="upgradePlan()">Fazer upgrade</button>');
-  else if (pct>=80) alertsHtml += mkAlert('warning','⚠️',`${pct}% do limite usado`,`Estimativa: $${b.total}.`);
+  else if (pct>=80) alertsHtml += mkAlert('warning','⚠️',`${pct}% do limite usado`,`Estimativa: R$ ${b.total}.`);
   if (st.invoices.some(i=>['uncollectible','failed'].includes(i.status))) alertsHtml += mkAlert('error','💳','Pagamento falhou','Atualize sua forma de pagamento.','<button class="btn btn-sm btn-danger" onclick="openPaymentModal(\'card\')">Atualizar cartão</button>');
   document.getElementById('billingAlerts').innerHTML = alertsHtml;
   const badge=document.getElementById('billingPlanBadge');
   badge.textContent=plan.name; badge.style.background=plan.color+'22'; badge.style.color=plan.color;
   document.getElementById('billingLimit').textContent = b.limit===Infinity?'Ilimitado':b.limit.toLocaleString('pt-BR');
-  document.getElementById('billingPrice').textContent = `$${plan.price}/mês`;
-  document.getElementById('billingOverageRate').textContent = plan.overage>0?`$${plan.overage} por geração`:'Sem cobrança extra';
+  document.getElementById('billingPrice').textContent = `R$ ${plan.price}/mês`;
+  document.getElementById('billingOverageRate').textContent = plan.overage>0?`R$ ${plan.overage} por geração`:'Sem cobrança extra';
   const smap={active:['badge-success','Ativo'],past_due:['badge-error','Atrasado'],canceled:['badge-error','Cancelado'],trialing:['badge-warning','Trial']};
   const [sc,sl]=smap[b.subscriptionStatus]||['badge-success','Ativo'];
   document.getElementById('billingSubStatus').className='badge '+sc;
   document.getElementById('billingSubStatus').textContent=sl;
-  document.getElementById('billingTotal').textContent=`$${b.total}`;
-  document.getElementById('billingTotalSub').textContent=`Plano $${plan.price}`+(b.overageAmt>0?` + excedente $${b.overageAmt}`:'');
+  document.getElementById('billingTotal').textContent=`R$ ${b.total}`;
+  document.getElementById('billingTotalSub').textContent=`Plano R$ ${plan.price}`+(b.overageAmt>0?` + excedente R$ ${b.overageAmt}`:'');
   document.getElementById('billingUsageLabel').textContent=`${b.usage} / ${b.limit===Infinity?'∞':b.limit}`;
   document.getElementById('billingUsagePct').textContent=pct+'%';
   const prog=document.getElementById('billingProgress');
   prog.style.width=Math.min(100,pct)+'%';
   prog.className='progress-fill '+(pct>=100?'over':pct>=80?'warn':'ok');
-  document.getElementById('billingBase').textContent=`$${plan.price}`;
-  document.getElementById('billingExcess').textContent=b.excess>0?`${b.excess} × $${b.overage} = $${b.overageAmt}`:'Nenhum';
-  document.getElementById('billingTotalRow').textContent=`$${b.total}`;
+  document.getElementById('billingBase').textContent=`R$ ${plan.price}`;
+  document.getElementById('billingExcess').textContent=b.excess>0?`${b.excess} × R$ ${b.overage} = R$ ${b.overageAmt}`:'Nenhum';
+  document.getElementById('billingTotalRow').textContent=`R$ ${b.total}`;
   document.getElementById('billingNextDate').textContent=fmtDate(b.nextDate);
-  document.getElementById('billingNextAmt').textContent=`$${b.total}`;
+  document.getElementById('billingNextAmt').textContent=`R$ ${b.total}`;
   const pmEl=document.getElementById('billingPayMethod');
   if (b.paymentMethod) {
     const {brand,last4,expMonth,expYear}=b.paymentMethod;
@@ -742,7 +726,7 @@ function renderBilling() {
     const btn=(inv.status==='pending'||inv.status==='open')
       ? `<button class="btn btn-sm btn-danger" onclick="payInvoice('${inv.id}')">Pagar</button>`
       : `<button class="btn btn-sm btn-secondary" onclick="showInvoiceDetail('${inv.id}')">Ver</button>`;
-    return `<tr><td class="text-muted" style="font-size:12px;">${inv.number||fmtDate(inv.date)}</td><td class="text-muted" style="font-size:12px;">${period}</td><td class="fw-600">$${inv.amount}</td><td><span class="badge ${sc2}">${sl2}</span></td><td>${btn}</td></tr>`;
+    return `<tr><td class="text-muted" style="font-size:12px;">${inv.number||fmtDate(inv.date)}</td><td class="text-muted" style="font-size:12px;">${period}</td><td class="fw-600">R$ ${inv.amount}</td><td><span class="badge ${sc2}">${sl2}</span></td><td>${btn}</td></tr>`;
   }).join('');
 }
 
@@ -784,104 +768,4 @@ async function openPaymentModal(mode = 'card', invoiceId = null) {
 async function confirmStripePayment() {
   const btn  = document.getElementById('paymentModalBtn');
   const errEl = document.getElementById('paymentModalError');
-  btn.disabled = true;
-  btn.textContent = 'Processando...';
-  errEl.style.display = 'none';
-
-  const returnUrl = window.location.href.split('?')[0];
-  const opts = { elements: _stripeElements, confirmParams: { return_url: returnUrl }, redirect: 'if_required' };
-  const result = _payMode === 'pay'
-    ? await _stripe.confirmPayment(opts)
-    : await _stripe.confirmSetup(opts);
-
-  if (result.error) {
-    errEl.textContent = result.error.message;
-    errEl.style.display = 'block';
-    btn.disabled = false;
-    btn.textContent = _payMode === 'pay' ? 'Pagar agora' : 'Salvar cartão';
-  } else {
-    closeModal('paymentModal');
-    toast(_payMode === 'pay' ? 'Pagamento realizado!' : 'Cartão salvo com sucesso!', 'success');
-    setTimeout(async () => { await loadBillingData(); renderBilling(); }, 1500);
-  }
-}
-
-function closePaymentModal(e) {
-  if (e && e.target !== document.getElementById('paymentModal')) return;
-  closeModal('paymentModal');
-}
-
-async function payInvoice(id) {
-  await openPaymentModal('pay', id);
-}
-
-async function upgradePlan() {
-  alert('Para fazer upgrade de plano, entre em contato: suporte@miragetryon.com');
-}
-
-async function openPortal() {
-  await openPaymentModal('card');
-}
-function showInvoiceDetail(id) {
-  const inv=st.invoices.find(i=>i.id===id); if (!inv) return;
-  document.getElementById('invoiceModalTitle').textContent=`Fatura ${inv.number||fmtDate(inv.date)}`;
-  document.getElementById('invoiceModalPeriod').textContent=inv.periodStart?`Período: ${fmtDate(inv.periodStart)} - ${fmtDate(inv.periodEnd)}`:'';
-  document.getElementById('invoiceModalBody').innerHTML=[
-    ...(inv.lines||[]).map(l=>`<div class="info-row"><span class="info-row-label">${esc(l.description)}</span><span class="info-row-value">$${l.amount}</span></div>`),
-    `<div class="info-row"><span class="info-row-label fw-600">Total</span><span class="info-row-value fw-600">$${inv.amount}</span></div>`,
-    `<div class="info-row"><span class="info-row-label">Status</span><span class="badge ${inv.status==='paid'?'badge-success':'badge-warning'}">${inv.status==='paid'?'Pago':'Pendente'}</span></div>`,
-  ].join('');
-  document.getElementById('invoiceModalActions').innerHTML=(inv.hostedUrl?`<a href="${inv.hostedUrl}" target="_blank" class="btn btn-primary">Abrir fatura</a>`:'')+`<button class="btn btn-secondary" onclick="closeModal('invoiceModal')">Fechar</button>`;
-  document.getElementById('invoiceModal').classList.add('open');
-}
-
-async function saveConfig() {
-  const msg=document.getElementById('cfgMsg');
-  msg.textContent='Salvando...'; msg.style.color='var(--muted)';
-  const r=await api('client','update',{ name:document.getElementById('cfgName').value.trim(), email:document.getElementById('cfgEmail').value.trim(), store:document.getElementById('cfgStore').value.trim() });
-  if (r.ok) {
-    st.client=r.client;
-    document.getElementById('sidebarStoreName').textContent=r.client.name||r.client.store||'Minha loja';
-    document.getElementById('cfgEmailDisplay').textContent=r.client.email||'-';
-    msg.textContent='Salvo com sucesso.'; msg.style.color='var(--success)';
-  } else { msg.textContent=r.error||'Erro ao salvar.'; msg.style.color='var(--error)'; }
-  setTimeout(()=>msg.textContent='',3000);
-}
-
-function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function fmtTs(ts){ if (!ts) return '-'; const d=new Date(ts); return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
-function fmtDate(s){ if (!s) return '-'; const [y,m,d]=s.split('-'); return `${d}/${m}/${y}`; }
-function closeModal(id){ document.getElementById(id).classList.remove('open'); }
-
-function renderPag(cid, page, total, limit, onPage) {
-  const pages=Math.ceil(total/limit), el=document.getElementById(cid);
-  if (pages<=1){ el.innerHTML=''; return; }
-  let html='';
-  if (page>1) html+=`<button class="btn btn-sm btn-secondary" onclick="(${onPage.toString()})(${page-1})">Anterior</button>`;
-  html+=`<span class="text-muted" style="font-size:12px;padding:0 8px;">${page} / ${pages}</span>`;
-  if (page<pages) html+=`<button class="btn btn-sm btn-secondary" onclick="(${onPage.toString()})(${page+1})">Próximo</button>`;
-  el.innerHTML=html;
-}
-
-document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{ if(e.target===o) closeModal(o.id); }));
-
-// Auto-login via sessionStorage
-(async()=>{
-  const saved=sessionStorage.getItem('cpSession');
-  if (!saved) return;
-  try {
-    const { clientKey, password } = JSON.parse(saved);
-    const r=await fetch(`${API_URL}/api/client`,{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action:'me', clientKey, password }) });
-    const data=await r.json();
-    if (data.ok){ st.clientKey=clientKey; st.password=password; st.client=data.client; startApp(); }
-    else sessionStorage.removeItem('cpSession');
-  } catch { sessionStorage.removeItem('cpSession'); }
-})();
-
-if (new URLSearchParams(location.search).get('payment')==='success') {
-  setTimeout(()=>alert('Pagamento realizado com sucesso!'),600);
-  history.replaceState({},'',location.pathname);
-}
-</script>
-</body>
-</html>
+  btn.disabled = 
