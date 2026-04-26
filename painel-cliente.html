@@ -391,15 +391,28 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--bg)}
 <div class="modal-overlay" id="paymentModal" onclick="closePaymentModal(event)">
   <div class="modal" style="max-width:460px;">
     <div class="modal-header">
-      <div class="modal-title" id="paymentModalTitle">Adicionar cartão</div>
+      <div class="modal-title" id="paymentModalTitle">Pagar fatura</div>
       <button class="modal-close" onclick="closeModal('paymentModal')">&times;</button>
     </div>
-    <div id="paymentModalLoading" style="text-align:center;padding:24px;color:var(--muted);font-size:13px;">Carregando formulário...</div>
+
+    <!-- Seletor de método -->
+    <div id="paymentMethodTabs" style="display:flex;gap:6px;margin-bottom:16px;">
+      <button class="btn btn-secondary btn-sm" id="tabCard"   onclick="selectPayTab('card')"   style="flex:1">💳 Cartão</button>
+      <button class="btn btn-secondary btn-sm" id="tabBoleto" onclick="selectPayTab('boleto')" style="flex:1">🏦 Boleto</button>
+      <button class="btn btn-secondary btn-sm" id="tabLink"   onclick="selectPayTab('link')"   style="flex:1">🔗 Link</button>
+    </div>
+
+    <div id="paymentModalLoading" style="text-align:center;padding:24px;color:var(--muted);font-size:13px;">Carregando...</div>
     <div id="payment-element" style="margin:4px 0 16px;"></div>
+    <div id="payLinkBox" style="display:none;padding:14px;background:var(--primary-light);border-radius:10px;text-align:center;margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;">Link de pagamento gerado</div>
+      <a id="payLinkUrl" href="#" target="_blank" class="btn btn-primary btn-sm" style="word-break:break-all;">Abrir link</a>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">Aceita cartão, boleto e PIX</div>
+    </div>
     <div id="paymentModalError" style="color:#ef4444;font-size:13px;margin-bottom:12px;padding:10px 12px;background:#fef2f2;border-radius:8px;display:none;"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="btn btn-secondary" onclick="closeModal('paymentModal')">Cancelar</button>
-      <button class="btn btn-primary" id="paymentModalBtn" onclick="confirmStripePayment()" style="display:none;">Salvar cartão</button>
+      <button class="btn btn-secondary" onclick="closeModal('paymentModal')">Fechar</button>
+      <button class="btn btn-primary" id="paymentModalBtn" onclick="confirmStripePayment()" style="display:none;">Pagar agora</button>
     </div>
   </div>
 </div>
@@ -731,27 +744,76 @@ function renderBilling() {
 }
 
 // ─── Stripe Elements inline ──────────────────────────────────────────────────
-let _stripe = null, _stripeElements = null, _payMode = 'card';
+let _stripe = null, _stripeElements = null, _payMode = 'card', _payInvoiceId = null;
 
 async function openPaymentModal(mode = 'card', invoiceId = null) {
-  _payMode = mode;
-  const action = mode === 'pay' ? 'pay_invoice' : 'setup_intent';
-  const data   = invoiceId ? { invoiceId } : {};
+  _payMode      = mode;
+  _payInvoiceId = invoiceId;
 
-  document.getElementById('paymentModalTitle').textContent   = mode === 'pay' ? 'Pagar fatura' : 'Adicionar cartão';
-  document.getElementById('paymentModalBtn').textContent     = mode === 'pay' ? 'Pagar agora'  : 'Salvar cartão';
-  document.getElementById('paymentModalBtn').style.display   = 'none';
+  // Esconde tudo primeiro
+  document.getElementById('payment-element').innerHTML = '';
+  document.getElementById('payLinkBox').style.display       = 'none';
   document.getElementById('paymentModalLoading').style.display = 'block';
   document.getElementById('paymentModalError').style.display  = 'none';
-  document.getElementById('payment-element').innerHTML = '';
+  document.getElementById('paymentModalBtn').style.display     = 'none';
   document.getElementById('paymentModal').classList.add('open');
 
-  const r = await api('billing', action, data);
-  if (!r.ok) {
-    document.getElementById('paymentModalLoading').textContent = r.error || 'Erro ao iniciar pagamento.';
+  // Configura tabs: modo 'card' = salvar cartão (sem boleto/link), modo 'pay' = pagar fatura
+  const tabs = document.getElementById('paymentMethodTabs');
+  if (mode === 'card') {
+    tabs.style.display = 'none';
+    document.getElementById('paymentModalTitle').textContent = 'Adicionar cartão';
+    await _loadStripeCard('setup_intent', {});
+  } else {
+    tabs.style.display = 'flex';
+    document.getElementById('paymentModalTitle').textContent = 'Pagar fatura';
+    selectPayTab('card');
+  }
+}
+
+async function selectPayTab(tab) {
+  const data = _payInvoiceId ? { invoiceId: _payInvoiceId } : {};
+  // Highlight tab
+  ['card','boleto','link'].forEach(t => {
+    const el = document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1));
+    if (el) el.style.background = t === tab ? 'var(--primary)' : '';
+    if (el) el.style.color      = t === tab ? '#fff' : '';
+    if (el) el.style.borderColor= t === tab ? 'var(--primary)' : '';
+  });
+
+  document.getElementById('payment-element').innerHTML = '';
+  document.getElementById('payLinkBox').style.display  = 'none';
+  document.getElementById('paymentModalBtn').style.display = 'none';
+  document.getElementById('paymentModalError').style.display = 'none';
+  document.getElementById('paymentModalLoading').style.display = 'block';
+
+  if (tab === 'link') {
+    const r = await api('billing', 'payment_link', data);
+    document.getElementById('paymentModalLoading').style.display = 'none';
+    if (!r.ok) {
+      document.getElementById('paymentModalError').textContent = r.error || 'Erro ao gerar link.';
+      document.getElementById('paymentModalError').style.display = 'block';
+      return;
+    }
+    const linkEl = document.getElementById('payLinkUrl');
+    linkEl.href        = r.url;
+    linkEl.textContent = 'Abrir link de pagamento';
+    document.getElementById('payLinkBox').style.display = 'block';
     return;
   }
 
+  await _loadStripeCard('pay_invoice', data);
+}
+
+async function _loadStripeCard(action, data) {
+  const r = await api('billing', action, data);
+  document.getElementById('paymentModalLoading').style.display = 'none';
+  if (!r.ok) {
+    document.getElementById('paymentModalError').textContent = r.error || 'Erro ao iniciar pagamento.';
+    document.getElementById('paymentModalError').style.display = 'block';
+    return;
+  }
+  _payMode = action === 'setup_intent' ? 'card' : 'pay';
   _stripe = Stripe(r.publishableKey);
   _stripeElements = _stripe.elements({
     clientSecret: r.clientSecret,
@@ -759,8 +821,8 @@ async function openPaymentModal(mode = 'card', invoiceId = null) {
   });
   const el = _stripeElements.create('payment');
   el.on('ready', () => {
-    document.getElementById('paymentModalLoading').style.display = 'none';
     document.getElementById('paymentModalBtn').style.display = 'inline-flex';
+    document.getElementById('paymentModalBtn').textContent   = action === 'setup_intent' ? 'Salvar cartão' : 'Pagar agora';
   });
   el.mount('#payment-element');
 }

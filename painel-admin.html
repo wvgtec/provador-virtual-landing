@@ -1072,14 +1072,34 @@ function populateJobsClientFilter() {
 }
 
 // ─── Billing ───────────────────────────────────────────────────────────────────
+
+// Retorna dados do plano: primeiro busca em produtosCache (Redis), depois em PLANS hardcoded
+function getPlanData(planId) {
+  if (produtosCache && produtosCache.length) {
+    const found = produtosCache.find(p => p.id === planId || p.name?.toLowerCase() === planId?.toLowerCase());
+    if (found) {
+      return {
+        name:   found.name,
+        price:  Number(found.price)   || 0,
+        overage: Number(found.overage) || 0,
+        limit:  found.tryons === 0 ? Infinity : (Number(found.tryons) || 100),
+        color:  '#635BFF',
+      };
+    }
+  }
+  return PLANS[planId || 'starter'] || PLANS.starter;
+}
+
 function calcClientBilling(c) {
-  const plan  = PLANS[c.plan || 'starter'] || PLANS.starter;
+  const plan  = getPlanData(c.plan || 'starter');
   const usage = c.usageCount || 0;
   const overage = plan.limit !== Infinity ? Math.max(0, usage - plan.limit) : 0;
   return plan.price + overage * plan.overage;
 }
 
-function renderBilling() {
+async function renderBilling() {
+  // Garante que os planos do Redis estão carregados
+  if (!produtosCache.length) await loadProdutos();
   const active = clients.filter(c => c.active);
   const mrr    = calcMRR();
   const totalJobs = clients.reduce((s, c) => s + (c.usageCount || 0), 0);
@@ -1099,19 +1119,24 @@ function renderBilling() {
     byPlan[p].count++;
     byPlan[p].revenue += PLANS[p]?.price || 0;
   });
-  document.getElementById('billing-plans').innerHTML = Object.entries(PLANS)
-    .filter(([k]) => byPlan[k])
-    .map(([k, p]) => `
-      <div class="plan-row">
-        <div class="plan-name"><span class="badge badge-primary">${p.name}</span></div>
-        <div class="plan-detail">${byPlan[k]?.count || 0} clientes • R$ ${p.price}/mês</div>
-        <div class="plan-price">R$ ${(byPlan[k]?.revenue || 0).toLocaleString()}</div>
-      </div>`).join('') || '<p style="color:var(--muted);font-size:13px">Nenhum cliente ativo.</p>';
+  // Agrupa por plano usando getPlanData
+  const allPlanIds = [...new Set(clients.filter(c=>c.active).map(c=>c.plan||'starter'))];
+  document.getElementById('billing-plans').innerHTML = allPlanIds.length
+    ? allPlanIds.map(k => {
+        const p = getPlanData(k);
+        const info = byPlan[k] || { count: 0, revenue: 0 };
+        return `<div class="plan-row">
+          <div class="plan-name"><span class="badge badge-primary">${escHtml(p.name)}</span></div>
+          <div class="plan-detail">${info.count} clientes • R$ ${p.price}/mês</div>
+          <div class="plan-price">R$ ${info.revenue.toLocaleString()}</div>
+        </div>`;
+      }).join('')
+    : '<p style="color:var(--muted);font-size:13px">Nenhum cliente ativo.</p>';
 
   // Por cliente
   const sorted = [...clients].sort((a, b) => calcClientBilling(b) - calcClientBilling(a));
   document.getElementById('billing-clients-tbody').innerHTML = sorted.map(c => {
-    const plan     = PLANS[c.plan || 'starter'] || PLANS.starter;
+    const plan     = getPlanData(c.plan || 'starter');
     const usage    = c.usageCount || 0;
     const overage  = plan.limit !== Infinity ? Math.max(0, usage - plan.limit) : 0;
     const total    = calcClientBilling(c);
@@ -1365,6 +1390,10 @@ function copySnippet() {
 }
 
 // ─── Modal helpers ────────────────────────────────────────────────────────────
+function openModal(id) {
+  document.getElementById(id)?.classList.add('open');
+}
+
 function closeModal(id) {
   document.getElementById(id)?.classList.remove('open');
 }
