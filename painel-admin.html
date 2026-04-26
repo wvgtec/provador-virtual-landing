@@ -421,7 +421,6 @@ tbody tr:hover td { background: #fafbff; }
         <div class="card">
           <div class="card-header">
             <h3>Planos cadastrados</h3>
-            <button class="btn btn-primary btn-sm" onclick="openPlanModal()">+ Novo plano</button>
           </div>
           <table>
             <thead>
@@ -899,11 +898,12 @@ function openClientDetail(key) {
   renderClientDetail(key);
 }
 
-function renderClientDetail(key) {
+async function renderClientDetail(key) {
   const c = clients.find(c => c.key === key);
   if (!c) { document.getElementById('client-detail-content').innerHTML = '<p>Cliente não encontrado.</p>'; return; }
 
-  const plan  = PLANS[c.plan || 'starter'] || PLANS.starter;
+  if (!produtosCache.length) await loadProdutos();
+  const plan  = getPlanData(c.plan || 'starter');
   const usage = c.usageCount || 0;
   const pct   = plan.limit === Infinity ? 0 : Math.min(Math.round(usage / plan.limit * 100), 100);
   const barColor = pct >= 100 ? 'var(--error)' : pct >= 80 ? 'var(--warning)' : 'var(--primary)';
@@ -1312,11 +1312,11 @@ async function resetUsage(key) {
 }
 
 let _planChangeKey = '';
-function openPlanChange(key) {
+async function openPlanChange(key) {
   _planChangeKey = key;
-  // Popula o select com planos do Redis (se carregados) ou usa os padrão
-  if (typeof produtosCache !== 'undefined' && produtosCache.length) {
-    const sel = document.getElementById('change-plan-select');
+  if (!produtosCache.length) await loadProdutos();
+  const sel = document.getElementById('change-plan-select');
+  if (produtosCache.length) {
     sel.innerHTML = produtosCache.map(p =>
       `<option value="${esc(p.id)}">${esc(p.name)} (${p.tryons === 0 ? 'Ilimitado' : p.tryons} tryons / R$ ${Number(p.price).toFixed(2)})</option>`
     ).join('');
