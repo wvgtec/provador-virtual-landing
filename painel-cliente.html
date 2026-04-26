@@ -395,31 +395,50 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--bg)}
 </div>
 
 <div class="modal-overlay" id="paymentModal" onclick="closePaymentModal(event)">
-  <div class="modal" style="max-width:460px;">
+  <div class="modal" style="max-width:480px;">
     <div class="modal-header">
-      <div class="modal-title" id="paymentModalTitle">Pagar fatura</div>
+      <div class="modal-title" id="paymentModalTitle">Pagamento</div>
       <button class="modal-close" onclick="closeModal('paymentModal')">&times;</button>
     </div>
 
     <!-- Seletor de método -->
-    <div id="paymentMethodTabs" style="display:flex;gap:6px;margin-bottom:16px;">
+    <div style="display:flex;gap:6px;margin-bottom:16px;">
       <button class="btn btn-secondary btn-sm" id="tabCard"   onclick="selectPayTab('card')"   style="flex:1">💳 Cartão</button>
       <button class="btn btn-secondary btn-sm" id="tabBoleto" onclick="selectPayTab('boleto')" style="flex:1">🏦 Boleto</button>
-      <button class="btn btn-secondary btn-sm" id="tabLink"   onclick="selectPayTab('link')"   style="flex:1">🔗 Link</button>
+      <button class="btn btn-secondary btn-sm" id="tabLink"   onclick="selectPayTab('link')"   style="flex:1">🔗 Link de pagamento</button>
     </div>
 
     <div id="paymentModalLoading" style="text-align:center;padding:24px;color:var(--muted);font-size:13px;">Carregando...</div>
     <div id="payment-element" style="margin:4px 0 16px;"></div>
-    <div id="payLinkBox" style="display:none;padding:14px;background:var(--primary-light);border-radius:10px;text-align:center;margin-bottom:12px;">
+    <div id="payLinkBox" style="display:none;padding:16px;background:var(--primary-light);border-radius:10px;text-align:center;margin-bottom:12px;">
       <div style="font-size:13px;font-weight:600;margin-bottom:10px;">Link de pagamento gerado</div>
-      <a id="payLinkUrl" href="#" target="_blank" class="btn btn-primary btn-sm" style="word-break:break-all;">Abrir link</a>
-      <div style="font-size:11px;color:var(--muted);margin-top:8px;">Aceita cartão, boleto e PIX</div>
+      <a id="payLinkUrl" href="#" target="_blank" class="btn btn-primary btn-sm">Abrir link de pagamento</a>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">Aceita cartão de crédito, boleto e PIX</div>
     </div>
     <div id="paymentModalError" style="color:#ef4444;font-size:13px;margin-bottom:12px;padding:10px 12px;background:#fef2f2;border-radius:8px;display:none;"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
+    <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center;">
       <button class="btn btn-secondary" onclick="closeModal('paymentModal')">Fechar</button>
       <button class="btn btn-primary" id="paymentModalBtn" onclick="confirmStripePayment()" style="display:none;">Pagar agora</button>
     </div>
+    <!-- Stripe + segurança -->
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:10px;">
+      <svg height="20" viewBox="0 0 60 25" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Stripe"><path d="M59.64 14.28h-8.06c.19 1.93 1.6 2.55 3.2 2.55 1.64 0 2.96-.37 4.05-.95v3.32a8.33 8.33 0 01-4.56 1.1c-4.01 0-6.83-2.5-6.83-7.48 0-4.19 2.39-7.52 6.3-7.52 3.92 0 5.96 3.28 5.96 7.5 0 .4-.04 1.26-.06 1.48zm-5.92-5.62c-1.03 0-2.17.73-2.17 2.58h4.25c0-1.85-1.07-2.58-2.08-2.58zM40.95 20.3c-1.44 0-2.32-.6-2.9-1.04l-.02 4.63-4.12.87V5.57h3.76l.08 1.02a4.7 4.7 0 013.23-1.29c2.9 0 5.62 2.6 5.62 7.4 0 5.23-2.7 7.6-5.65 7.6zM40 8.95c-.95 0-1.54.34-1.97.81l.02 6.12c.4.44.98.78 1.95.78 1.52 0 2.54-1.65 2.54-3.87 0-2.15-1.04-3.84-2.54-3.84zM28.24 5.57h4.13v14.44h-4.13V5.57zm0-4.7L32.37 0v3.36l-4.13.88V.87zm-4.32 9.35v9.79H19.8V5.57h3.7l.12 1.22c1-1.77 3.07-1.41 3.62-1.22v3.79c-.52-.17-2.29-.43-3.32.86zm-8.55 4.72c0 2.43 2.6 1.68 3.12 1.46v3.36c-.55.3-1.54.54-2.89.54a4.15 4.15 0 01-4.27-4.24l.01-9.97h4.02V15zm-4.98-5.06H6.86v9.79H2.75V9.94H0V6.09h2.75V4.92L6.86.5v5.59h3.53v3.85z" fill="#635BFF"/></svg>
+      <span style="font-size:11px;color:var(--muted);">Pagamentos processados com segurança pelo Stripe</span>
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span style="font-size:11px;color:var(--muted);">SSL 256-bit</span>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de upgrade de plano -->
+<div class="modal-overlay" id="upgradeModal" onclick="if(event.target===this)closeModal('upgradeModal')">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <div><div class="modal-title">Mudar de plano</div><div class="text-muted" style="font-size:12px;margin-top:2px;" id="upgradeSub">Escolha o plano ideal para o seu volume</div></div>
+      <button class="modal-close" onclick="closeModal('upgradeModal')">&times;</button>
+    </div>
+    <div id="upgradePlansBody" style="display:grid;gap:10px;padding:4px 0 8px;"></div>
+    <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:4px;">Após o pagamento, seu plano será atualizado em até 24h. Dúvidas? Fale com o suporte.</div>
   </div>
 </div>
 
@@ -439,6 +458,7 @@ const st = {
   clientKey:'', password:'', client:null,
   billing:null, invoices:[], invoicesMock:false,
   allLeads:[], jobsPage:1, leadsPage:1,
+  plans:[],
 };
 let productsChart = null;
 
@@ -485,9 +505,8 @@ async function startApp() {
   document.getElementById('loginWrap').style.display = 'none';
   document.getElementById('app').classList.add('visible');
   const c = st.client;
-  const plan = PLANS[c.plan] || PLANS.starter;
   document.getElementById('sidebarStoreName').textContent = c.name || c.store || 'Minha loja';
-  document.getElementById('sidebarPlan').textContent = `${plan.name} — R$ ${plan.price}/mês`;
+  document.getElementById('sidebarPlan').textContent = 'Carregando...';
   document.getElementById('cfgName').value         = c.name        || '';
   document.getElementById('cfgEmail').value        = c.email       || '';
   document.getElementById('cfgStore').value        = c.store       || '';
@@ -495,7 +514,15 @@ async function startApp() {
   document.getElementById('cfgBillingName').value  = c.billingName || '';
   document.getElementById('cfgTax').value          = c.taxId       || '';
   document.getElementById('cfgAddress').value      = c.address     || '';
-  await loadBillingData();
+  // Carrega billing e lista de planos disponíveis em paralelo
+  const [, plansRes] = await Promise.all([
+    loadBillingData(),
+    fetch(`${API_URL}/api/client`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'listPlans'}) }).then(r=>r.json()).catch(()=>({ok:false,plans:[]})),
+  ]);
+  if (plansRes.ok && plansRes.plans?.length) st.plans = plansRes.plans;
+  if (st.billing) {
+    document.getElementById('sidebarPlan').textContent = `${st.billing.planName || st.billing.plan || 'Plano'} — R$ ${st.billing.planPrice}/mês`;
+  }
   loadDashboard();
 }
 
@@ -527,7 +554,8 @@ async function loadBillingData() {
 
 async function loadDashboard() {
   const b = st.billing; if (!b) return;
-  const plan = PLANS[b.plan]||PLANS.starter;
+  const planName = b.planName || b.plan || 'Plano';
+  const planPrice = b.planPrice || 0;
   const pct  = b.limit===Infinity ? 0 : Math.round((b.usage/b.limit)*100);
   let alertsHtml='';
   if (pct>=100) alertsHtml += mkAlert('error','⛔','Limite atingido — novas gerações estão bloqueadas',`Você usou ${b.usage} de ${b.limit} gerações.`,'<button class="btn btn-sm btn-danger" onclick="nav(\'billing\')">Fazer upgrade</button>');
@@ -539,7 +567,7 @@ async function loadDashboard() {
     <div class="kpi-card"><div class="kpi-label">Gerações usadas</div><div class="kpi-value ${pct>=100?'text-error':pct>=80?'text-warning':''}">${b.usage}</div><div class="kpi-sub">de ${b.limit===Infinity?'∞':b.limit} no plano</div></div>
     <div class="kpi-card"><div class="kpi-label">Restantes</div><div class="kpi-value">${rem}</div><div class="kpi-sub">até o fim do ciclo</div></div>
     <div class="kpi-card"><div class="kpi-label">Custo estimado</div><div class="kpi-value">R$ ${b.total}</div><div class="kpi-sub">próx. cobrança ${fmtDate(b.nextDate)}</div></div>`;
-  document.getElementById('dashPlanSub').textContent = `Plano ${plan.name} — R$ ${plan.price}/mês`;
+  document.getElementById('dashPlanSub').textContent = `Plano ${planName} — R$ ${planPrice}/mês`;
   document.getElementById('dashUsageLabel').textContent = `${b.usage} / ${b.limit===Infinity?'∞':b.limit} gerações`;
   document.getElementById('dashUsagePct').textContent = pct+'%';
   const prog = document.getElementById('dashProgress');
@@ -589,7 +617,19 @@ async function loadProducts() {
   if (!r.ok||!r.products?.length) { document.getElementById('productsTbody').innerHTML='<tr><td colspan="4" class="text-muted" style="text-align:center;padding:24px;">Nenhum dado de produto ainda.</td></tr>'; return; }
   const products=r.products, total=products.reduce((s,p)=>s+p.count,0);
   if (productsChart) { productsChart.destroy(); productsChart=null; }
-  const displayName = p => (p.name && p.name !== p.url) ? p.name : (() => { try { const u=new URL(p.url); return u.hostname+u.pathname; } catch { return p.url.slice(0,60); } })();
+  const displayName = p => {
+    const n = p.name || '';
+    // Usa o nome se existir, não for a URL em si, não for "desconhecido" e não for imagem CDN
+    if (n && n !== p.url && n.toLowerCase() !== 'desconhecido' && !/\.(webp|jpg|jpeg|png|gif)/i.test(n)) return n;
+    try {
+      const u = new URL(p.url);
+      // CDN de imagem: extrai nome do arquivo limpo
+      const parts = u.pathname.split('/').filter(Boolean);
+      const last  = parts[parts.length-1] || '';
+      const clean = last.replace(/\.(webp|jpg|jpeg|png|gif)$/i,'').replace(/_\d+x\d+[\w]*$/i,'').replace(/[-_]+/g,' ').trim();
+      return clean || (u.hostname + u.pathname).slice(0,60);
+    } catch { return (p.url||'').slice(0,60) || 'Produto'; }
+  };
   const labels = products.slice(0,10).map(p => displayName(p).slice(0,40));
   productsChart = new Chart(document.getElementById('productsChart').getContext('2d'), {
     type:'bar',
@@ -703,7 +743,10 @@ function copySnippet() {
 
 function renderBilling() {
   const b=st.billing; if (!b) { loadBillingData().then(renderBilling); return; }
-  const plan=PLANS[b.plan]||PLANS.starter, pct=b.limit===Infinity?0:Math.round((b.usage/b.limit)*100);
+  const planName = b.planName || b.plan || 'Plano';
+  const planPrice = b.planPrice || 0;
+  const planColor = '#635BFF';
+  const pct = b.limit===Infinity ? 0 : Math.round((b.usage/b.limit)*100);
   let alertsHtml='';
   if (!b.stripeEnabled) alertsHtml += mkAlert('info','ℹ️','Stripe não configurado','Os valores são estimativas. Entre em contato para ativar pagamentos automáticos.');
   if (pct>=100) alertsHtml += mkAlert('error','⛔','Limite atingido','Novas gerações bloqueadas até upgrade.','<button class="btn btn-sm btn-danger" onclick="upgradePlan()">Fazer upgrade</button>');
@@ -711,22 +754,22 @@ function renderBilling() {
   if (st.invoices.some(i=>['uncollectible','failed'].includes(i.status))) alertsHtml += mkAlert('error','💳','Pagamento falhou','Atualize sua forma de pagamento.','<button class="btn btn-sm btn-danger" onclick="openPaymentModal(\'card\')">Atualizar cartão</button>');
   document.getElementById('billingAlerts').innerHTML = alertsHtml;
   const badge=document.getElementById('billingPlanBadge');
-  badge.textContent=plan.name; badge.style.background=plan.color+'22'; badge.style.color=plan.color;
+  badge.textContent=planName; badge.style.background=planColor+'22'; badge.style.color=planColor;
   document.getElementById('billingLimit').textContent = b.limit===Infinity?'Ilimitado':b.limit.toLocaleString('pt-BR');
-  document.getElementById('billingPrice').textContent = `R$ ${plan.price}/mês`;
-  document.getElementById('billingOverageRate').textContent = plan.overage>0?`R$ ${plan.overage} por geração`:'Sem cobrança extra';
+  document.getElementById('billingPrice').textContent = `R$ ${planPrice}/mês`;
+  document.getElementById('billingOverageRate').textContent = b.overage>0?`R$ ${b.overage} por geração`:'Sem cobrança extra';
   const smap={active:['badge-success','Ativo'],past_due:['badge-error','Atrasado'],canceled:['badge-error','Cancelado'],trialing:['badge-warning','Trial']};
   const [sc,sl]=smap[b.subscriptionStatus]||['badge-success','Ativo'];
   document.getElementById('billingSubStatus').className='badge '+sc;
   document.getElementById('billingSubStatus').textContent=sl;
   document.getElementById('billingTotal').textContent=`R$ ${b.total}`;
-  document.getElementById('billingTotalSub').textContent=`Plano R$ ${plan.price}`+(b.overageAmt>0?` + excedente R$ ${b.overageAmt}`:'');
+  document.getElementById('billingTotalSub').textContent=`Plano R$ ${planPrice}`+(b.overageAmt>0?` + excedente R$ ${b.overageAmt}`:'');
   document.getElementById('billingUsageLabel').textContent=`${b.usage} / ${b.limit===Infinity?'∞':b.limit}`;
   document.getElementById('billingUsagePct').textContent=pct+'%';
   const prog=document.getElementById('billingProgress');
   prog.style.width=Math.min(100,pct)+'%';
   prog.className='progress-fill '+(pct>=100?'over':pct>=80?'warn':'ok');
-  document.getElementById('billingBase').textContent=`R$ ${plan.price}`;
+  document.getElementById('billingBase').textContent=`R$ ${planPrice}`;
   document.getElementById('billingExcess').textContent=b.excess>0?`${b.excess} × R$ ${b.overage} = R$ ${b.overageAmt}`:'Nenhum';
   document.getElementById('billingTotalRow').textContent=`R$ ${b.total}`;
   document.getElementById('billingNextDate').textContent=fmtDate(b.nextDate);
@@ -759,25 +802,20 @@ async function openPaymentModal(mode = 'card', invoiceId = null) {
   _payMode      = mode;
   _payInvoiceId = invoiceId;
 
-  // Esconde tudo primeiro
+  // Reseta o modal
   document.getElementById('payment-element').innerHTML = '';
-  document.getElementById('payLinkBox').style.display       = 'none';
+  document.getElementById('payLinkBox').style.display          = 'none';
   document.getElementById('paymentModalLoading').style.display = 'block';
-  document.getElementById('paymentModalError').style.display  = 'none';
+  document.getElementById('paymentModalError').style.display   = 'none';
   document.getElementById('paymentModalBtn').style.display     = 'none';
   document.getElementById('paymentModal').classList.add('open');
 
-  // Configura tabs: modo 'card' = salvar cartão (sem boleto/link), modo 'pay' = pagar fatura
-  const tabs = document.getElementById('paymentMethodTabs');
-  if (mode === 'card') {
-    tabs.style.display = 'none';
-    document.getElementById('paymentModalTitle').textContent = 'Adicionar cartão';
-    await _loadStripeCard('setup_intent', {});
-  } else {
-    tabs.style.display = 'flex';
-    document.getElementById('paymentModalTitle').textContent = 'Pagar fatura';
-    selectPayTab('card');
-  }
+  // Sempre mostra as 3 abas
+  const title = mode === 'card' ? 'Gerenciar pagamento' : 'Pagar fatura';
+  document.getElementById('paymentModalTitle').textContent = title;
+
+  // Aba padrão: cartão
+  await selectPayTab('card');
 }
 
 async function selectPayTab(tab) {
@@ -785,22 +823,24 @@ async function selectPayTab(tab) {
   // Highlight tab
   ['card','boleto','link'].forEach(t => {
     const el = document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1));
-    if (el) el.style.background = t === tab ? 'var(--primary)' : '';
-    if (el) el.style.color      = t === tab ? '#fff' : '';
-    if (el) el.style.borderColor= t === tab ? 'var(--primary)' : '';
+    if (!el) return;
+    const active = t === tab;
+    el.style.background  = active ? 'var(--primary)' : '';
+    el.style.color       = active ? '#fff' : '';
+    el.style.borderColor = active ? 'var(--primary)' : '';
   });
 
-  document.getElementById('payment-element').innerHTML = '';
-  document.getElementById('payLinkBox').style.display  = 'none';
-  document.getElementById('paymentModalBtn').style.display = 'none';
-  document.getElementById('paymentModalError').style.display = 'none';
+  document.getElementById('payment-element').innerHTML         = '';
+  document.getElementById('payLinkBox').style.display          = 'none';
+  document.getElementById('paymentModalBtn').style.display     = 'none';
+  document.getElementById('paymentModalError').style.display   = 'none';
   document.getElementById('paymentModalLoading').style.display = 'block';
 
   if (tab === 'link') {
     const r = await api('billing', 'payment_link', data);
     document.getElementById('paymentModalLoading').style.display = 'none';
     if (!r.ok) {
-      document.getElementById('paymentModalError').textContent = r.error || 'Erro ao gerar link.';
+      document.getElementById('paymentModalError').textContent = r.error || 'Stripe não configurado. Entre em contato com o suporte.';
       document.getElementById('paymentModalError').style.display = 'block';
       return;
     }
@@ -811,7 +851,9 @@ async function selectPayTab(tab) {
     return;
   }
 
-  await _loadStripeCard('pay_invoice', data);
+  // Cartão: se modo 'card' (sem fatura) usa setup_intent; se 'pay' usa pay_invoice
+  const action = (_payMode === 'card' && !_payInvoiceId) ? 'setup_intent' : 'pay_invoice';
+  await _loadStripeCard(action, data);
 }
 
 async function _loadStripeCard(action, data) {
@@ -906,10 +948,61 @@ function showInvoiceDetail(invoiceId) {
   document.getElementById('invoiceModal').classList.add('open');
 }
 
-function upgradePlan() {
-  nav('billing');
-  alert('Entre em contato com o suporte Mirage para fazer upgrade do seu plano.');
+async function upgradePlan() {
+  // Recarrega planos se necessário
+  if (!st.plans.length) {
+    const r = await fetch(`${API_URL}/api/client`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({action:'listPlans'}) }).then(r=>r.json()).catch(()=>({ok:false,plans:[]}));
+    if (r.ok && r.plans?.length) st.plans = r.plans;
+  }
+  const plans = st.plans;
+  const currentPlanId = st.billing?.plan || st.client?.plan || '';
+  const currentPrice  = st.billing?.planPrice || 0;
+  const body = document.getElementById('upgradePlansBody');
+
+  if (!plans.length) {
+    body.innerHTML = '<div class="text-muted" style="text-align:center;padding:20px;">Nenhum plano disponível. Entre em contato com o suporte.</div>';
+    document.getElementById('upgradeModal').classList.add('open');
+    return;
+  }
+
+  body.innerHTML = plans.map(p => {
+    const isCurrent = p.id === currentPlanId || (p.price === currentPrice);
+    const isDisabled = p.price < currentPrice && !isCurrent;
+    const limitStr = p.tryons === 0 ? 'Ilimitado' : `${Number(p.tryons).toLocaleString('pt-BR')} tryons/mês`;
+    const overageStr = p.overage > 0 ? `R$ ${Number(p.overage).toFixed(2)} por geração extra` : 'Sem cobrança extra';
+    return `<div style="border:2px solid ${isCurrent ? 'var(--primary)' : 'var(--border)'};border-radius:12px;padding:16px;background:${isCurrent ? 'var(--primary-light)' : 'var(--card)'};opacity:${isDisabled?0.5:1};">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-weight:700;font-size:15px;">${esc(p.name)} ${isCurrent?'<span class="badge badge-primary" style="font-size:10px;margin-left:6px;">Plano atual</span>':''}</div>
+        <div style="font-size:18px;font-weight:800;color:var(--primary);">R$ ${Number(p.price).toFixed(2)}<span style="font-size:12px;font-weight:400;color:var(--muted)">/mês</span></div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">${limitStr} · ${overageStr}</div>
+      ${isCurrent ? '<div class="btn btn-secondary btn-sm btn-full" style="cursor:default;opacity:0.6;">Plano atual</div>' :
+        isDisabled ? '' :
+        `<button class="btn btn-primary btn-sm btn-full" onclick="selectUpgradePlan('${esc(p.id)}','${esc(p.name)}',${p.price})">Selecionar este plano</button>`
+      }
+    </div>`;
+  }).join('');
+
+  document.getElementById('upgradeModal').classList.add('open');
 }
+
+async function selectUpgradePlan(planId, planName, price) {
+  closeModal('upgradeModal');
+  // Gera link de pagamento para o plano escolhido via payment_link
+  // Abre o modal de pagamento na aba Link com o plano como context
+  _payMode = 'upgrade';
+  _payInvoiceId = null;
+  _upgradeTarget = { planId, planName, price };
+  document.getElementById('payment-element').innerHTML         = '';
+  document.getElementById('payLinkBox').style.display          = 'none';
+  document.getElementById('paymentModalLoading').style.display = 'block';
+  document.getElementById('paymentModalError').style.display   = 'none';
+  document.getElementById('paymentModalBtn').style.display     = 'none';
+  document.getElementById('paymentModalTitle').textContent     = `Upgrade para ${planName}`;
+  document.getElementById('paymentModal').classList.add('open');
+  await selectPayTab('link');
+}
+let _upgradeTarget = null;
 
 async function saveConfig() {
   const name  = document.getElementById('cfgName').value.trim();
