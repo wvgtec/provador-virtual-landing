@@ -766,6 +766,142 @@ async function openPaymentModal(mode = 'card', invoiceId = null) {
 }
 
 async function confirmStripePayment() {
-  const btn  = document.getElementById('paymentModalBtn');
+  const btn   = document.getElementById('paymentModalBtn');
   const errEl = document.getElementById('paymentModalError');
-  btn.disabled = 
+  btn.disabled = true;
+  btn.textContent = 'Processando...';
+  errEl.style.display = 'none';
+  try {
+    let result;
+    if (_payMode === 'pay') {
+      result = await _stripe.confirmPayment({
+        elements: _stripeElements,
+        redirect: 'if_required',
+        confirmParams: { return_url: window.location.href },
+      });
+    } else {
+      result = await _stripe.confirmSetup({
+        elements: _stripeElements,
+        redirect: 'if_required',
+        confirmParams: { return_url: window.location.href },
+      });
+    }
+    if (result.error) {
+      errEl.textContent = result.error.message;
+      errEl.style.display = 'block';
+    } else {
+      closeModal('paymentModal');
+      await loadBillingData();
+      renderBilling();
+    }
+  } catch(e) {
+    errEl.textContent = 'Erro inesperado. Tente novamente.';
+    errEl.style.display = 'block';
+  }
+  btn.disabled = false;
+  btn.textContent = _payMode === 'pay' ? 'Pagar agora' : 'Salvar cartão';
+}
+
+function closePaymentModal(e) {
+  if (e.target === document.getElementById('paymentModal')) closeModal('paymentModal');
+}
+
+// ─── Modal helpers ────────────────────────────────────────────────────────────
+function closeModal(id) {
+  document.getElementById(id)?.classList.remove('open');
+}
+
+function payInvoice(invoiceId) {
+  openPaymentModal('pay', invoiceId);
+}
+
+function showInvoiceDetail(invoiceId) {
+  const inv = st.invoices.find(i => i.id === invoiceId);
+  if (!inv) return;
+  document.getElementById('invoiceModalTitle').textContent  = `Fatura ${inv.number || fmtDate(inv.date)}`;
+  document.getElementById('invoiceModalPeriod').textContent = inv.periodStart ? `${fmtDate(inv.periodStart)} - ${fmtDate(inv.periodEnd)}` : '';
+  const scm = {paid:'badge-success',pending:'badge-warning',open:'badge-warning',uncollectible:'badge-error',void:'badge-muted'};
+  const slm = {paid:'Pago',pending:'Pendente',open:'Pendente',uncollectible:'Falhou',void:'Cancelado'};
+  const lines = (inv.lines||[]).map(l=>`<div class="info-row"><span class="info-row-label">${esc(l.description)}</span><span class="info-row-value">R$ ${l.amount}</span></div>`).join('');
+  document.getElementById('invoiceModalBody').innerHTML = `
+    <div class="info-row"><span class="info-row-label">Valor</span><span class="info-row-value fw-600">R$ ${inv.amount}</span></div>
+    <div class="info-row"><span class="info-row-label">Status</span><span class="badge ${scm[inv.status]||'badge-muted'}">${slm[inv.status]||inv.status}</span></div>
+    ${lines}`;
+  const acts = document.getElementById('invoiceModalActions');
+  acts.innerHTML = '';
+  if (inv.pdfUrl) acts.innerHTML += `<a href="${esc(inv.pdfUrl)}" target="_blank" class="btn btn-secondary btn-sm">Baixar PDF</a>`;
+  if (inv.hostedUrl) acts.innerHTML += `<a href="${esc(inv.hostedUrl)}" target="_blank" class="btn btn-secondary btn-sm">Ver online</a>`;
+  acts.innerHTML += `<button class="btn btn-secondary btn-sm" onclick="closeModal('invoiceModal')" style="margin-left:auto;">Fechar</button>`;
+  document.getElementById('invoiceModal').classList.add('open');
+}
+
+function upgradePlan() {
+  nav('billing');
+  alert('Entre em contato com o suporte Mirage para fazer upgrade do seu plano.');
+}
+
+async function saveConfig() {
+  const name  = document.getElementById('cfgName').value.trim();
+  const email = document.getElementById('cfgEmail').value.trim();
+  const store = document.getElementById('cfgStore').value.trim();
+  const msgEl = document.getElementById('cfgMsg');
+  msgEl.textContent = 'Salvando...'; msgEl.style.color = 'var(--muted)';
+  const r = await api('client','update',{name,email,store});
+  if (r.ok) {
+    st.client = r.client;
+    msgEl.textContent = 'Alterações salvas.'; msgEl.style.color = 'var(--success)';
+    document.getElementById('sidebarStoreName').textContent = r.client.name || r.client.store || 'Minha loja';
+  } else {
+    msgEl.textContent = r.error || 'Erro ao salvar.'; msgEl.style.color = 'var(--error)';
+  }
+  setTimeout(()=>msgEl.textContent='', 4000);
+}
+
+// ─── Utilitários ──────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtDate(s) {
+  if (!s) return '-';
+  try { const [y,m,d]=s.split('-'); return `${d}/${m}/${y}`; } catch { return s; }
+}
+function fmtTs(ts) {
+  if (!ts) return '-';
+  try { return new Date(ts).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}); } catch { return '-'; }
+}
+function renderPag(elId, page, total, limit, cb) {
+  const pages = Math.ceil(total/limit);
+  const el    = document.getElementById(elId);
+  if (!el || pages<=1) { if(el) el.innerHTML=''; return; }
+  let html = '';
+  if (page>1) html += `<button class="btn btn-secondary btn-sm" onclick="(${cb.toString()})(${page-1})">‹ Anterior</button>`;
+  html += `<span style="font-size:12px;color:var(--muted);align-self:center;">${page} / ${pages}</span>`;
+  if (page<pages) html += `<button class="btn btn-secondary btn-sm" onclick="(${cb.toString()})(${page+1})">Próxima ›</button>`;
+  el.innerHTML = html;
+}
+
+// ─── Restaura sessão salva ────────────────────────────────────────────────────
+(async function init() {
+  const saved = sessionStorage.getItem('cpSession');
+  if (!saved) return;
+  try {
+    const { clientKey, password } = JSON.parse(saved);
+    if (!clientKey || !password) return;
+    const r = await fetch(`${API_URL}/api/client`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'me', clientKey, password }),
+    });
+    const data = await r.json();
+    if (data.ok) {
+      st.clientKey = clientKey;
+      st.password  = password;
+      st.client    = data.client;
+      startApp();
+    } else {
+      sessionStorage.removeItem('cpSession');
+    }
+  } catch { sessionStorage.removeItem('cpSession'); }
+})();
+</script>
+</body>
+</html>

@@ -481,11 +481,11 @@ tbody tr:hover td { background: #fafbff; }
     <div class="field">
       <label>Plano</label>
       <select id="new-plan" class="filter-select" style="width:100%;padding:10px 12px;font-size:14px">
-        <option value="starter">Starter (100 tryons / $19)</option>
-        <option value="pro">Pro (500 tryons / $29)</option>
-        <option value="growth" selected>Growth (1000 tryons / $49)</option>
-        <option value="scale">Scale (5000 tryons / $149)</option>
-        <option value="enterprise">Enterprise (ilimitado)</option>
+        <option value="starter">Starter (100 tryons / R$ 49)</option>
+        <option value="pro">Pro (500 tryons / R$ 149)</option>
+        <option value="growth" selected>Growth (1000 tryons / R$ 249)</option>
+        <option value="scale">Scale (5000 tryons / R$ 749)</option>
+        <option value="enterprise">Enterprise (ilimitado / R$ 2.499)</option>
       </select>
     </div>
     <div class="field"><label>Senha de acesso ao painel (mín. 6 chars)</label><input type="password" id="new-password" placeholder="O cliente usará esta senha para entrar"></div>
@@ -526,11 +526,11 @@ tbody tr:hover td { background: #fafbff; }
     <div class="field">
       <label>Novo plano</label>
       <select id="change-plan-select" class="filter-select" style="width:100%;padding:10px 12px;font-size:14px">
-        <option value="starter">Starter (100 tryons / $19)</option>
-        <option value="pro">Pro (500 tryons / $29)</option>
-        <option value="growth">Growth (1000 tryons / $49)</option>
-        <option value="scale">Scale (5000 tryons / $149)</option>
-        <option value="enterprise">Enterprise (ilimitado)</option>
+        <option value="starter">Starter (100 tryons / R$ 49)</option>
+        <option value="pro">Pro (500 tryons / R$ 149)</option>
+        <option value="growth">Growth (1000 tryons / R$ 249)</option>
+        <option value="scale">Scale (5000 tryons / R$ 749)</option>
+        <option value="enterprise">Enterprise (ilimitado / R$ 2.499)</option>
       </select>
     </div>
     <div class="modal-actions">
@@ -734,7 +734,7 @@ function renderKPIs() {
   document.getElementById('kpi-grid').innerHTML = `
     <div class="kpi-card">
       <div class="kpi-label">MRR estimado</div>
-      <div class="kpi-value">$${mrr.toLocaleString()}</div>
+      <div class="kpi-value">R$ ${mrr.toLocaleString()}</div>
       <div class="kpi-delta neutral">${active} clientes ativos</div>
     </div>
     <div class="kpi-card">
@@ -928,15 +928,15 @@ function renderClientDetail(key) {
                   </div>
                   <span style="font-size:13px;font-weight:700;color:${barColor}">${pct}%</span>
                 </div>
-                <div style="font-size:12px;color:var(--muted);margin-top:6px">${usage.toLocaleString()} de ${limitStr} tryons • Plano ${plan.name} ($${plan.price}/mês)</div>
+                <div style="font-size:12px;color:var(--muted);margin-top:6px">${usage.toLocaleString()} de ${limitStr} tryons • Plano ${plan.name} (R$ ${plan.price}/mês)</div>
               </div>
             </div>
             <div class="detail-section">
               <h4>Informações</h4>
               <div class="info-row"><span class="info-label">E-mail</span><span class="info-value">${escHtml(c.email)}</span></div>
               <div class="info-row"><span class="info-label">Domínio</span><span class="info-value">${c.store ? escHtml(c.store) : '<span style="color:var(--muted)">não informado</span>'}</span></div>
-              <div class="info-row"><span class="info-label">Plano</span><span class="info-value"><span class="badge badge-primary">${escHtml(c.plan || 'starter')}</span> $${plan.price}/mês</span></div>
-              <div class="info-row"><span class="info-label">Estimativa mensal</span><span class="info-value" style="color:var(--primary);font-size:16px">$${total.toFixed(2)}</span></div>
+              <div class="info-row"><span class="info-label">Plano</span><span class="info-value"><span class="badge badge-primary">${escHtml(c.plan || 'starter')}</span> R$ ${plan.price}/mês</span></div>
+              <div class="info-row"><span class="info-label">Estimativa mensal</span><span class="info-value" style="color:var(--primary);font-size:16px">R$ ${total.toFixed(2)}</span></div>
               <div class="info-row"><span class="info-label">Cliente desde</span><span class="info-value">${c.createdAt ? new Date(c.createdAt).toLocaleDateString('pt-BR') : '-'}</span></div>
             </div>
             <div class="detail-section">
@@ -1086,9 +1086,9 @@ function renderBilling() {
 
   // KPIs
   document.getElementById('billing-kpis').innerHTML = `
-    <div class="kpi-card"><div class="kpi-label">MRR estimado</div><div class="kpi-value">$${mrr.toLocaleString()}</div><div class="kpi-delta neutral">${active.length} clientes</div></div>
+    <div class="kpi-card"><div class="kpi-label">MRR estimado</div><div class="kpi-value">R$ ${mrr.toLocaleString()}</div><div class="kpi-delta neutral">${active.length} clientes</div></div>
     <div class="kpi-card"><div class="kpi-label">Total tryons</div><div class="kpi-value">${totalJobs.toLocaleString()}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Ticket médio</div><div class="kpi-value">$${active.length ? Math.round(mrr/active.length) : 0}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Ticket médio</div><div class="kpi-value">R$ ${active.length ? Math.round(mrr/active.length) : 0}</div></div>
   `;
 
   // Por plano
@@ -1104,8 +1104,8 @@ function renderBilling() {
     .map(([k, p]) => `
       <div class="plan-row">
         <div class="plan-name"><span class="badge badge-primary">${p.name}</span></div>
-        <div class="plan-detail">${byPlan[k]?.count || 0} clientes • $${p.price}/mês</div>
-        <div class="plan-price">$${(byPlan[k]?.revenue || 0).toLocaleString()}</div>
+        <div class="plan-detail">${byPlan[k]?.count || 0} clientes • R$ ${p.price}/mês</div>
+        <div class="plan-price">R$ ${(byPlan[k]?.revenue || 0).toLocaleString()}</div>
       </div>`).join('') || '<p style="color:var(--muted);font-size:13px">Nenhum cliente ativo.</p>';
 
   // Por cliente
@@ -1120,8 +1120,8 @@ function renderBilling() {
       <td style="font-weight:600">${escHtml(c.name)}</td>
       <td><span class="badge badge-primary">${escHtml(c.plan||'starter')}</span></td>
       <td style="font-size:12px">${usage.toLocaleString()}/${limitStr}</td>
-      <td style="font-size:12px;color:${overage>0?'var(--warning)':'var(--muted)'}">${overage>0 ? `+${overage} ($${(overage*plan.overage).toFixed(2)})` : '—'}</td>
-      <td style="font-weight:700;color:var(--primary)">$${total.toFixed(2)}</td>
+      <td style="font-size:12px;color:${overage>0?'var(--warning)':'var(--muted)'}">${overage>0 ? `+${overage} (R$ ${(overage*plan.overage).toFixed(2)})` : '—'}</td>
+      <td style="font-weight:700;color:var(--primary)">R$ ${total.toFixed(2)}</td>
     </tr>`;
   }).join('');
 }
@@ -1209,209 +1209,12 @@ function renderSettings() {
   document.getElementById('plans-list').innerHTML = Object.entries(PLANS).map(([k, p]) => `
     <div class="plan-row">
       <div class="plan-name"><span class="badge badge-primary">${p.name}</span></div>
-      <div class="plan-detail">Limite: ${p.limit === Infinity ? 'Ilimitado' : p.limit.toLocaleString()} tryons • Excedente: $${p.overage}/tryon</div>
-      <div class="plan-price">$${p.price}/mês</div>
+      <div class="plan-detail">Limite: ${p.limit === Infinity ? 'Ilimitado' : p.limit.toLocaleString()} tryons • Excedente: R$ ${p.overage}/tryon</div>
+      <div class="plan-price">R$ ${p.price}/mês</div>
     </div>`).join('');
 }
 
 // ─── Criar cliente ─────────────────────────────────────────────────────────────
 function openCreateModal() {
   document.getElementById('new-name').value     = '';
-  document.getElementById('new-email').value    = '';
-  document.getElementById('new-store').value    = '';
-  document.getElementById('new-password').value = '';
-  document.getElementById('created-result').style.display = 'none';
-  document.getElementById('create-actions').style.display = '';
-  document.getElementById('modal-create').classList.add('open');
-}
-
-async function setClientPassword(key) {
-  const pwd    = document.getElementById('newClientPassword')?.value?.trim();
-  const msgEl  = document.getElementById('pwdMsg');
-  if (!pwd || pwd.length < 6) { if (msgEl) { msgEl.textContent = 'Senha deve ter pelo menos 6 caracteres.'; msgEl.style.color = 'var(--error)'; } return; }
-  if (msgEl) { msgEl.textContent = 'Salvando...'; msgEl.style.color = 'var(--muted)'; }
-  const r = await apiFetch('setPassword', { key, password: pwd });
-  if (msgEl) {
-    msgEl.textContent  = r.ok ? 'Senha definida com sucesso.' : (r.error || 'Erro ao definir senha.');
-    msgEl.style.color  = r.ok ? 'var(--success)' : 'var(--error)';
-    setTimeout(() => { if (msgEl) msgEl.textContent = ''; }, 3000);
-  }
-  if (r.ok && document.getElementById('newClientPassword')) document.getElementById('newClientPassword').value = '';
-}
-
-async function createClient() {
-  const name     = document.getElementById('new-name').value.trim();
-  const email    = document.getElementById('new-email').value.trim();
-  const store    = document.getElementById('new-store').value.trim();
-  const plan     = document.getElementById('new-plan').value;
-  const password = document.getElementById('new-password').value.trim();
-  if (!name || !email) { toast('Preencha nome e email.', 'error'); return; }
-  if (password && password.length < 6) { toast('Senha deve ter pelo menos 6 caracteres.', 'error'); return; }
-  const data = await apiFetch('create', { name, email, store, plan, password: password || undefined });
-  if (data.error) { toast('Erro: ' + data.error, 'error'); return; }
-  const key = data.key || data.client?.key;
-  const sec = data.secret || data.client?.secret;
-  document.getElementById('create-actions').style.display = 'none';
-  const panelUrl = `${apiUrl}/painel-cliente.html?key=${encodeURIComponent(key)}`;
-  document.getElementById('created-result').style.display = '';
-  document.getElementById('created-result').innerHTML = `
-    <div class="secret-box">
-      <h4>✅ Cliente criado!</h4>
-      <p class="secret-warn">Envie as credenciais ao cliente. A senha não é recuperável.</p>
-      <div style="margin-top:10px;font-size:12px;color:#166534;font-weight:600">Chave API:</div>
-      <div class="secret-val">${escHtml(key)}</div>
-      ${sec ? `<div style="font-size:12px;color:#166534;font-weight:600">Senha do painel:</div><div class="secret-val">${escHtml(sec)}</div>` : ''}
-      <div style="font-size:12px;color:#166534;font-weight:600;margin-top:8px">Link do painel:</div>
-      <div class="secret-val" style="font-size:11px">${escHtml(panelUrl)}</div>
-      <button class="btn btn-secondary btn-sm" style="margin-top:8px;width:100%" onclick="copyText('${escHtml(panelUrl)}')">Copiar link do painel</button>
-    </div>`;
-  toast('Cliente criado!', 'success');
-  await loadClients();
-  if (currentView === 'clients') renderClients();
-}
-
-// ─── Ações de cliente ──────────────────────────────────────────────────────────
-async function toggleClient(key) {
-  const data = await apiFetch('toggle', { key });
-  if (data.error) { toast('Erro: ' + data.error, 'error'); return; }
-  toast(data.active ? 'Cliente ativado.' : 'Cliente suspenso.', 'success');
-  await loadClients();
-  if (currentView === 'clients') renderClients();
-  if (currentView === 'client-detail') renderClientDetail(selectedKey);
-}
-
-async function deleteClient(key, name) {
-  if (!confirm(`Excluir "${name}"? Esta ação não pode ser desfeita.`)) return;
-  const data = await apiFetch('delete', { key });
-  if (data.error) { toast('Erro: ' + data.error, 'error'); return; }
-  toast('Cliente removido.', 'success');
-  await loadClients();
-  navigate('clients', document.querySelector('.nav-item:nth-child(2)'));
-}
-
-async function resetUsage(key) {
-  if (!confirm('Zerar a contagem de uso deste cliente?')) return;
-  const raw = await apiFetch('resetUsage', { key });
-  if (raw.error) { toast('Erro: ' + raw.error, 'error'); return; }
-  toast('Uso resetado.', 'success');
-  await loadClients();
-  renderClientDetail(selectedKey);
-}
-
-// ─── Troca de plano ────────────────────────────────────────────────────────────
-function openPlanChange(key) {
-  planChangeKey = key;
-  const c = clients.find(c => c.key === key);
-  if (c) document.getElementById('change-plan-select').value = c.plan || 'starter';
-  document.getElementById('modal-plan').classList.add('open');
-}
-
-async function confirmPlanChange() {
-  const newPlan = document.getElementById('change-plan-select').value;
-  const data = await apiFetch('changePlan', { key: planChangeKey, plan: newPlan });
-  if (data.error) { toast('Erro: ' + data.error, 'error'); return; }
-  toast('Plano atualizado!', 'success');
-  closeModal('modal-plan');
-  await loadClients();
-  if (currentView === 'client-detail') renderClientDetail(selectedKey);
-  if (currentView === 'clients') renderClients();
-}
-
-// ─── Snippet ───────────────────────────────────────────────────────────────────
-function openSnippet(key, store) {
-  snippetKey   = key;
-  snippetStore = store || '';
-  updateSnippet();
-  document.getElementById('modal-snippet').classList.add('open');
-}
-
-function buildSnippet(platform, key, storeName) {
-  const base  = apiUrl;
-  const wUrl  = `${base}/widget/tryon-widget.js?v=${WIDGET_VERSION}`;
-  const store = storeName || 'Minha Loja';
-  const optional = `  /* Personalizacao opcional:
-  window.VTON_BTN_TEXT   = 'Experimentar virtualmente';
-  window.VTON_BTN_BG     = '#1a1a1a';
-  window.VTON_BTN_COLOR  = '#ffffff'; */`;
-  const garments = {
-    shopify:       "{{ product.featured_image | img_url: 'master' }}",
-    nuvemshop:     '{product.featured_image.src}',
-    woocommerce:   '<?php echo get_the_post_thumbnail_url(get_the_ID(), "full"); ?>',
-    lojaintegrada: '{% if product.image %}{{ product.image.url }}{% endif %}',
-    vtexlegacy:    '$product.ImageURL',
-  };
-  if (platform === 'vtexio') return `<script>
-  window.VTON_API_URL    = '${base}';
-  window.VTON_CLIENT_KEY = '${key}';
-  window.VTON_STORE_NAME = '${store}';
-  window.addEventListener('load', function() {
-    var img = document.querySelector('[class*="productImageTag"]')
-           || document.querySelector('[class*="product-image"] img');
-    if (img) window.VTON_GARMENT_URL = img.src;
-  });
-${optional}
-<\/script>
-<div id="vton-anchor"><\/div>
-<script src="${wUrl}" defer><\/script>`;
-
-  return `<script>
-  window.VTON_API_URL     = '${base}';
-  window.VTON_CLIENT_KEY  = '${key}';
-  window.VTON_GARMENT_URL = '${garments[platform] || garments.shopify}';
-  window.VTON_STORE_NAME  = '${store}';
-${optional}
-<\/script>
-<div id="vton-anchor"><\/div>
-<script src="${wUrl}" defer><\/script>`;
-}
-
-function updateSnippet() {
-  const platform = document.getElementById('snippet-platform').value;
-  const box = document.getElementById('snippet-box');
-  const btn = box.querySelector('button');
-  box.textContent = buildSnippet(platform, snippetKey, snippetStore);
-  box.appendChild(btn);
-}
-
-function copySnippet() {
-  const box  = document.getElementById('snippet-box');
-  const text = box.textContent.replace('Copiar','').trim();
-  navigator.clipboard.writeText(text).then(() => toast('Copiado!', 'success'));
-}
-
-// ─── Helpers ───────────────────────────────────────────────────────────────────
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-function closeModalBg(e, id) { if (e.target === document.getElementById(id)) closeModal(id); }
-function openModal(id)  { document.getElementById(id).classList.add('open'); }
-
-function copyText(text) {
-  navigator.clipboard.writeText(text).then(() => toast('Copiado!', 'success'));
-}
-
-function escHtml(str) {
-  return String(str || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-function timeAgo(ts) {
-  const diff = Date.now() - Number(ts);
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1)    return 'agora';
-  if (mins < 60)   return `${mins}m atrás`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24)    return `${hrs}h atrás`;
-  const days = Math.floor(hrs / 24);
-  if (days < 30)   return `${days}d atrás`;
-  return new Date(Number(ts)).toLocaleDateString('pt-BR');
-}
-
-let toastTimer = null;
-function toast(msg, type = '') {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'toast show' + (type ? ' ' + type : '');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
-}
-</script>
-</body>
-</html>
+  document.getEle
