@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://js.stripe.com/v3/"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -351,7 +352,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--bg)}
           <div class="card">
             <div class="card-header"><div class="card-title">Forma de pagamento</div></div>
             <div id="billingPayMethod"><div class="text-muted" style="font-size:13px;padding:6px 0;">Nenhum cartão cadastrado</div></div>
-            <button class="btn btn-secondary btn-sm mt-8" onclick="openPortal()">Gerenciar pagamento</button>
+            <button class="btn btn-secondary btn-sm mt-8" onclick="openPaymentModal('card')">Gerenciar pagamento</button>
           </div>
         </div>
         <div class="card">
@@ -385,7 +386,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--bg)}
           <div class="field"><label>Empresa / Nome completo</label><input id="cfgBillingName" type="text"></div>
           <div class="field"><label>CNPJ / CPF (opcional)</label><input id="cfgTax" type="text" placeholder="00.000.000/0001-00"></div>
           <div class="field"><label>Endereço</label><textarea id="cfgAddress" rows="2" placeholder="Rua, numero, cidade, estado"></textarea></div>
-          <button class="btn btn-secondary btn-sm" onclick="openPortal()">Salvar no Stripe</button>
+          <button class="btn btn-secondary btn-sm" onclick="openPaymentModal('card')">Adicionar cartão</button>
         </div>
       </div>
 
@@ -401,6 +402,22 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--bg)}
     </div>
     <div id="invoiceModalBody"></div>
     <div style="display:flex;gap:8px;margin-top:20px;" id="invoiceModalActions"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="paymentModal" onclick="closePaymentModal(event)">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <div class="modal-title" id="paymentModalTitle">Adicionar cartão</div>
+      <button class="modal-close" onclick="closeModal('paymentModal')">&times;</button>
+    </div>
+    <div id="paymentModalLoading" style="text-align:center;padding:24px;color:var(--muted);font-size:13px;">Carregando formulário...</div>
+    <div id="payment-element" style="margin:4px 0 16px;"></div>
+    <div id="paymentModalError" style="color:#ef4444;font-size:13px;margin-bottom:12px;padding:10px 12px;background:#fef2f2;border-radius:8px;display:none;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="closeModal('paymentModal')">Cancelar</button>
+      <button class="btn btn-primary" id="paymentModalBtn" onclick="confirmStripePayment()" style="display:none;">Salvar cartão</button>
+    </div>
   </div>
 </div>
 
@@ -685,7 +702,7 @@ function renderBilling() {
   if (!b.stripeEnabled) alertsHtml += mkAlert('info','ℹ️','Stripe não configurado','Os valores são estimativas. Entre em contato para ativar pagamentos automáticos.');
   if (pct>=100) alertsHtml += mkAlert('error','⛔','Limite atingido','Novas gerações bloqueadas até upgrade.','<button class="btn btn-sm btn-danger" onclick="upgradePlan()">Fazer upgrade</button>');
   else if (pct>=80) alertsHtml += mkAlert('warning','⚠️',`${pct}% do limite usado`,`Estimativa: $${b.total}.`);
-  if (st.invoices.some(i=>['uncollectible','failed'].includes(i.status))) alertsHtml += mkAlert('error','💳','Pagamento falhou','Atualize sua forma de pagamento.','<button class="btn btn-sm btn-danger" onclick="openPortal()">Atualizar cartão</button>');
+  if (st.invoices.some(i=>['uncollectible','failed'].includes(i.status))) alertsHtml += mkAlert('error','💳','Pagamento falhou','Atualize sua forma de pagamento.','<button class="btn btn-sm btn-danger" onclick="openPaymentModal(\'card\')">Atualizar cartão</button>');
   document.getElementById('billingAlerts').innerHTML = alertsHtml;
   const badge=document.getElementById('billingPlanBadge');
   badge.textContent=plan.name; badge.style.background=plan.color+'22'; badge.style.color=plan.color;
@@ -729,20 +746,81 @@ function renderBilling() {
   }).join('');
 }
 
+// ─── Stripe Elements inline ──────────────────────────────────────────────────
+let _stripe = null, _stripeElements = null, _payMode = 'card';
+
+async function openPaymentModal(mode = 'card', invoiceId = null) {
+  _payMode = mode;
+  const action = mode === 'pay' ? 'pay_invoice' : 'setup_intent';
+  const data   = invoiceId ? { invoiceId } : {};
+
+  document.getElementById('paymentModalTitle').textContent   = mode === 'pay' ? 'Pagar fatura' : 'Adicionar cartão';
+  document.getElementById('paymentModalBtn').textContent     = mode === 'pay' ? 'Pagar agora'  : 'Salvar cartão';
+  document.getElementById('paymentModalBtn').style.display   = 'none';
+  document.getElementById('paymentModalLoading').style.display = 'block';
+  document.getElementById('paymentModalError').style.display  = 'none';
+  document.getElementById('payment-element').innerHTML = '';
+  document.getElementById('paymentModal').classList.add('open');
+
+  const r = await api('billing', action, data);
+  if (!r.ok) {
+    document.getElementById('paymentModalLoading').textContent = r.error || 'Erro ao iniciar pagamento.';
+    return;
+  }
+
+  _stripe = Stripe(r.publishableKey);
+  _stripeElements = _stripe.elements({
+    clientSecret: r.clientSecret,
+    appearance: { theme: 'stripe', variables: { colorPrimary: '#6366f1', borderRadius: '8px' } },
+  });
+  const el = _stripeElements.create('payment');
+  el.on('ready', () => {
+    document.getElementById('paymentModalLoading').style.display = 'none';
+    document.getElementById('paymentModalBtn').style.display = 'inline-flex';
+  });
+  el.mount('#payment-element');
+}
+
+async function confirmStripePayment() {
+  const btn  = document.getElementById('paymentModalBtn');
+  const errEl = document.getElementById('paymentModalError');
+  btn.disabled = true;
+  btn.textContent = 'Processando...';
+  errEl.style.display = 'none';
+
+  const returnUrl = window.location.href.split('?')[0];
+  const opts = { elements: _stripeElements, confirmParams: { return_url: returnUrl }, redirect: 'if_required' };
+  const result = _payMode === 'pay'
+    ? await _stripe.confirmPayment(opts)
+    : await _stripe.confirmSetup(opts);
+
+  if (result.error) {
+    errEl.textContent = result.error.message;
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = _payMode === 'pay' ? 'Pagar agora' : 'Salvar cartão';
+  } else {
+    closeModal('paymentModal');
+    toast(_payMode === 'pay' ? 'Pagamento realizado!' : 'Cartão salvo com sucesso!', 'success');
+    setTimeout(async () => { await loadBillingData(); renderBilling(); }, 1500);
+  }
+}
+
+function closePaymentModal(e) {
+  if (e && e.target !== document.getElementById('paymentModal')) return;
+  closeModal('paymentModal');
+}
+
 async function payInvoice(id) {
-  const r=await api('billing','checkout',{invoiceId:id});
-  if (r.ok&&r.url) window.location.href=r.url;
-  else alert(r.error||'Erro ao abrir pagamento. Entre em contato com o suporte.');
+  await openPaymentModal('pay', id);
 }
+
 async function upgradePlan() {
-  const r=await api('billing','checkout');
-  if (r.ok&&r.url) window.location.href=r.url;
-  else alert(r.error||'Para fazer upgrade: suporte@miragetryon.com');
+  alert('Para fazer upgrade de plano, entre em contato: suporte@miragetryon.com');
 }
+
 async function openPortal() {
-  const r=await api('billing','portal');
-  if (r.ok&&r.url) window.open(r.url,'_blank');
-  else alert(r.error||'Portal indisponível. Contato: suporte@miragetryon.com');
+  await openPaymentModal('card');
 }
 function showInvoiceDetail(id) {
   const inv=st.invoices.find(i=>i.id===id); if (!inv) return;
