@@ -305,10 +305,19 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--bg)}
         </div>
         <div class="card">
           <div class="card-header"><div><div class="card-title">Snippet de instalação</div><div class="card-sub">Cole antes do &lt;/body&gt; em cada página de produto</div></div></div>
-          <div class="code-block"><button class="code-copy-btn" onclick="copySnippet()">Copiar</button><pre id="snippetCode" style="white-space:pre-wrap;word-break:break-all;"></pre></div>
-          <div style="margin-top:12px;padding:12px;background:var(--warning-light);border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;">
-            Substitua <strong>URL_DA_PECA</strong> pela URL real da imagem do produto em cada página.
+          <div class="field" style="margin-bottom:12px;">
+            <label>Plataforma</label>
+            <select id="snippetPlatform" onchange="buildSnippet()" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px;">
+              <option value="shopify">Shopify</option>
+              <option value="nuvemshop">Nuvemshop</option>
+              <option value="woocommerce">WooCommerce</option>
+              <option value="lojaintegrada">Loja Integrada</option>
+              <option value="vtexio">VTEX IO</option>
+              <option value="vtexlegacy">VTEX Legacy</option>
+            </select>
           </div>
+          <div class="code-block"><button class="code-copy-btn" onclick="copySnippet()">Copiar</button><pre id="snippetCode" style="white-space:pre-wrap;word-break:break-all;font-size:12px;"></pre></div>
+          <div id="snippetHint" style="margin-top:12px;padding:12px;background:var(--warning-light);border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;"></div>
         </div>
       </div>
 
@@ -604,22 +613,64 @@ function loadIntegracao() {
 }
 
 function buildSnippet() {
-  const btnText  = document.getElementById('cfgBtnText')?.value||'Experimentar';
-  const btnBg    = document.getElementById('cfgBtnBg')?.value||'#000000';
-  const btnColor = document.getElementById('cfgBtnColor')?.value||'#ffffff';
-  const storeName = (st.client?.name||st.client?.store||'Minha Loja').replace(/'/g,"\\'");
-  document.getElementById('snippetCode').textContent =
-`<!-- Mirage Virtual Try-On Widget -->
-<script>
-  window.VTON_CLIENT_KEY  = '${st.clientKey}';
-  window.VTON_STORE_NAME  = '${storeName}';
-  window.VTON_GARMENT_URL = 'URL_DA_PECA';
-  window.VTON_CATEGORY    = 'auto';
-  window.VTON_BTN_TEXT    = '${btnText}';
-  window.VTON_BTN_BG      = '${btnBg}';
-  window.VTON_BTN_COLOR   = '${btnColor}';
+  const btnText   = document.getElementById('cfgBtnText')?.value  || 'Experimentar';
+  const btnBg     = document.getElementById('cfgBtnBg')?.value    || '#000000';
+  const btnColor  = document.getElementById('cfgBtnColor')?.value || '#ffffff';
+  const storeName = (st.client?.name || st.client?.store || 'Minha Loja').replace(/'/g, "\\'");
+  const platform  = document.getElementById('snippetPlatform')?.value || 'shopify';
+  const base      = 'https://provador-virtual-brown.vercel.app';
+  const wUrl      = `${base}/widget/tryon-widget.js?v=6.0`;
+  const optional  = `  /* Personalização opcional:
+  window.VTON_BTN_TEXT   = '${btnText}';
+  window.VTON_BTN_BG     = '${btnBg}';
+  window.VTON_BTN_COLOR  = '${btnColor}'; */`;
+
+  const garments = {
+    shopify:       "{{ product.featured_image | img_url: 'master' }}",
+    nuvemshop:     '{product.featured_image.src}',
+    woocommerce:   '<?php echo get_the_post_thumbnail_url(get_the_ID(), "full"); ?>',
+    lojaintegrada: '{% if product.image %}{{ product.image.url }}{% endif %}',
+    vtexlegacy:    '$product.ImageURL',
+  };
+
+  const hints = {
+    shopify:       'Cole no arquivo <strong>product.liquid</strong> do seu tema (Loja Online > Temas > Editar código), antes do <code>&lt;/body&gt;</code>.',
+    nuvemshop:     'Cole no template de produto da sua Nuvemshop (Personalizar > Editar HTML), antes do <code>&lt;/body&gt;</code>.',
+    woocommerce:   'Cole no arquivo <strong>single-product.php</strong> do seu tema filho, antes do <code>&lt;/body&gt;</code>.',
+    lojaintegrada: 'Cole no template de produto via painel da Loja Integrada (Layout > Editar template), antes do <code>&lt;/body&gt;</code>.',
+    vtexio:        'Adicione o bloco no arquivo <strong>product.jsonc</strong> ou como um bloco customizado via VTEX IO Toolbelt.',
+    vtexlegacy:    'Cole no template de produto do portal VTEX (CMS > Sites and channels > template), antes do <code>&lt;/body&gt;</code>.',
+  };
+
+  let snippet;
+  if (platform === 'vtexio') {
+    snippet = `<script>
+  window.VTON_API_URL    = '${base}';
+  window.VTON_CLIENT_KEY = '${st.clientKey}';
+  window.VTON_STORE_NAME = '${storeName}';
+  window.addEventListener('load', function() {
+    var img = document.querySelector('[class*="productImageTag"]')
+           || document.querySelector('[class*="product-image"] img');
+    if (img) window.VTON_GARMENT_URL = img.src;
+  });
+${optional}
 <\/script>
-<script src="https://wvgtec.github.io/provador-virtual-landing/widget/tryon-widget.js?v=6.0"><\/script>`;
+<div id="vton-anchor"><\/div>
+<script src="${wUrl}" defer><\/script>`;
+  } else {
+    snippet = `<script>
+  window.VTON_API_URL     = '${base}';
+  window.VTON_CLIENT_KEY  = '${st.clientKey}';
+  window.VTON_GARMENT_URL = '${garments[platform] || garments.shopify}';
+  window.VTON_STORE_NAME  = '${storeName}';
+${optional}
+<\/script>
+<div id="vton-anchor"><\/div>
+<script src="${wUrl}" defer><\/script>`;
+  }
+
+  document.getElementById('snippetCode').textContent = snippet;
+  document.getElementById('snippetHint').innerHTML = hints[platform] || '';
 }
 
 function copySnippet() {
