@@ -50,6 +50,10 @@ export default async function handler(req, res) {
 
   const job = typeof raw === 'string' ? JSON.parse(raw) : raw;
 
+  if (job.status === 'done') {
+    console.log(JSON.stringify({ ts: new Date().toISOString(), event: 'result_poll_done', jobId, clientKey: job.clientKey || '' }));
+  }
+
   // Retorna apenas os campos necessários — nunca devolve as imagens originais ou clientKey
   const safePayload = {
     status: job.status,

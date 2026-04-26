@@ -4,7 +4,7 @@
 
 import { Redis } from '@upstash/redis';
 import { Client as QStashClient } from '@upstash/qstash';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
 
 const PROJECT_ID       = 'provador-virtual-494213';
 const VALID_CATEGORIES = ['tops', 'bottoms', 'one-pieces', 'auto'];
@@ -20,6 +20,10 @@ const PLAN_LIMITS = {
 
 const redis  = new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN });
 const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN });
+
+function log(event, data = {}) {
+  console.log(JSON.stringify({ ts: new Date().toISOString(), event, ...data }));
+}
 
 async function isRateLimited(ip, prefix, maxRequests, windowSeconds) {
   const key = `${prefix}:${ip}`;
@@ -59,6 +63,7 @@ export default async function handler(req, res) {
     clientKey,
     lead,            // { name, email, whatsapp }
     productUrl,      // URL da página do produto (analytics)
+    productName,     // Título da página do produto
   } = req.body || {};
 
   // ─── clientKey obrigatório ────────────────────────────────────────────────
@@ -70,10 +75,27 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'Muitas requisições. Aguarde alguns segundos.' });
   }
 
+  // ─── Rate limit por clientKey (além do IP) ────────────────────────────────
+  const rlCkKey   = `rl:ck:${clientKey}:${Math.floor(Date.now() / 60000)}`;
+  const rlCkCount = await redis.incr(rlCkKey);
+  if (rlCkCount === 1) await redis.expire(rlCkKey, 60);
+  if (rlCkCount > 20) {
+    return res.status(429).json({ error: 'Limite por chave atingido. Aguarde 1 minuto.' });
+  }
+
   const raw = await redis.get(`client:${clientKey}`);
   if (!raw) return res.status(403).json({ error: 'Chave de cliente inválida.' });
   const client = typeof raw === 'string' ? JSON.parse(raw) : raw;
   if (!client.active) return res.status(403).json({ error: 'Acesso suspenso. Entre em contato com o suporte.' });
+
+  // ─── Status Stripe — defesa extra (webhook pode estar atrasado) ───────────
+  if (client.stripeSubscriptionId && ['canceled', 'unpaid'].includes(client.stripeStatus)) {
+    return res.status(403).json({
+      error:    'Assinatura inativa. Acesse o painel para regularizar.',
+      code:     'SUBSCRIPTION_INACTIVE',
+      stripeStatus: client.stripeStatus,
+    });
+  }
 
   // ─── Verificação de quota ─────────────────────────────────────────────────
   const planLimit    = PLAN_LIMITS[client.plan] ?? PLAN_LIMITS.starter;
@@ -129,28 +151,62 @@ export default async function handler(req, res) {
   const safeCategory    = VALID_CATEGORIES.includes(category) ? category : 'auto';
   const finalProductUrl = productUrl || finalGarmentUrl;
 
-  // ─── Contagem de uso ──────────────────────────────────────────────────────
+  // ─── Hash para cache por par (pessoa, roupa) ──────────────────────────────
+  const garmentHash = createHash('sha256')
+    .update(finalPersonUrl + '|' + finalGarmentUrl)
+    .digest('hex');
+
+  // Verifica cache antes de criar job — retorno imediato sem chamar Vertex
+  const cached = await redis.get(`cache:${garmentHash}`);
+  if (cached) {
+    log('submit_cache_hit', { clientKey });
+    return res.status(200).json({
+      jobId:       `cached_${garmentHash.slice(0, 8)}`,
+      status:      'done',
+      cached:      true,
+      resultImage: cached,
+      message:     'Resultado recuperado do cache.',
+    });
+  }
+
+  // ─── Contagem de uso (total + diário) ────────────────────────────────────
   const newCount = await redis.incr(`usage:${clientKey}`);
   await redis.set(`client:${clientKey}`, JSON.stringify({ ...client, usageCount: Number(newCount) || 0 }));
 
-  // ─── Cria job — só metadados, sem imagens inline ──────────────────────────
-  const jobId = randomUUID();
+  // Contador diário para rate limit e analytics por dia
+  const dayKey   = `usage:${clientKey}:${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`;
+  const dayCount = await redis.incr(dayKey);
+  if (dayCount === 1) await redis.expire(dayKey, 86400);
 
-  await redis.set(
-    `job:${jobId}`,
-    JSON.stringify({
-      status:          'pending',
-      createdAt:       Date.now(),
-      projectId:       PROJECT_ID,
-      personImageUrl:  finalPersonUrl,
-      garmentImageUrl: finalGarmentUrl,
-      category:        safeCategory,
-      clientKey,
-      lead:            hasLead ? { name: leadName, email: leadEmail, whatsapp: leadWhatsapp } : null,
-      productUrl:      finalProductUrl,
-    }),
-    { ex: 3600 }
-  );
+  // ─── Cria job — só metadados, sem imagens inline ──────────────────────────
+  const jobId    = randomUUID();
+  const now      = Date.now();
+
+  await Promise.all([
+    redis.set(
+      `job:${jobId}`,
+      JSON.stringify({
+        status:          'pending',
+        createdAt:       now,
+        projectId:       PROJECT_ID,
+        personImageUrl:  finalPersonUrl,
+        garmentImageUrl: finalGarmentUrl,
+        category:        safeCategory,
+        clientKey,
+        lead:            hasLead ? { name: leadName, email: leadEmail, whatsapp: leadWhatsapp } : null,
+        productUrl:      finalProductUrl,
+        productName:     productName ? String(productName).slice(0, 200) : '',
+        hash:            garmentHash,  // usado pelo process.js para salvar cache
+      }),
+      { ex: 3600 }
+    ),
+    // Índice global por cliente (O(log n))
+    redis.zadd(`jobs:${clientKey}`, { score: now, member: jobId }),
+    redis.expire(`jobs:${clientKey}`, 60 * 60 * 24 * 90),
+    // Índice por status — permite filtrar sem scan em memória
+    redis.zadd(`jobs:${clientKey}:pending`, { score: now, member: jobId }),
+    redis.expire(`jobs:${clientKey}:pending`, 60 * 60 * 24 * 90),
+  ]);
 
   await qstash.publishJSON({
     url:     `${process.env.APP_URL}/api/process`,
@@ -158,6 +214,7 @@ export default async function handler(req, res) {
     retries: 3,
   });
 
+  log('submit_job_created', { jobId, clientKey, category: safeCategory });
   return res.status(202).json({
     jobId,
     status:  'pending',

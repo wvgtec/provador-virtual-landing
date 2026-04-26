@@ -1,0 +1,108 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "functions": {
+    "api/submit.js": {
+      "maxDuration": 10,
+      "memory": 256
+    },
+    "api/process.js": {
+      "maxDuration": 60,
+      "memory": 512
+    },
+    "api/result.js": {
+      "maxDuration": 10,
+      "memory": 128
+    },
+    "api/upload-url.js": {
+      "maxDuration": 10,
+      "memory": 128
+    },
+    "api/leads.js": {
+      "maxDuration": 10,
+      "memory": 128
+    },
+    "api/lead.js": {
+      "maxDuration": 10,
+      "memory": 128
+    },
+    "api/save-lead.js": {
+      "maxDuration": 10,
+      "memory": 128
+    },
+    "api/cleanup.js": {
+      "maxDuration": 15,
+      "memory": 128
+    },
+    "api/cleanup-person.js": {
+      "maxDuration": 15,
+      "memory": 128
+    },
+    "api/admin.js": {
+      "maxDuration": 10,
+      "memory": 128
+    },
+    "api/client.js": {
+      "maxDuration": 10,
+      "memory": 128
+    },
+    "api/billing.js": {
+      "maxDuration": 15,
+      "memory": 256
+    },
+    "api/stripe-webhook.js": {
+      "maxDuration": 15,
+      "memory": 256
+    },
+    "api/create-checkout.js": {
+      "maxDuration": 10,
+      "memory": 128
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, Upstash-Signature, X-Client-Secret" },
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/widget/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
+    {
+      "source": "/painel-admin.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    },
+    {
+      "source": "/painel-cliente.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store, no-cache, must-revalidate" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" }
+      ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600, stale-while-revalidate=86400" }
+      ]
+    },
+    {
+      "source": "/(.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.gif|.*\\.webp|.*\\.svg|.*\\.ico)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=604800, immutable" }
+      ]
+    }
+  ]
+}

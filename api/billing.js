@@ -3,7 +3,8 @@
 // Se STRIPE_SECRET_KEY não estiver definido, retorna dados mock / Redis only.
 
 import { Redis } from '@upstash/redis';
-import { timingSafeEqual } from 'crypto';
+import { timingSafeEqual, scryptSync } from 'crypto';
+import Stripe from 'stripe';
 
 const redis = new Redis({
   url:   process.env.UPSTASH_REDIS_REST_URL,
@@ -11,23 +12,17 @@ const redis = new Redis({
 });
 
 const PLAN_LIMITS = {
-  starter:    { limit: 100,      price: 9,   overage: 0.15 },
-  pro:        { limit: 500,      price: 29,  overage: 0.08 },
-  growth:     { limit: 1000,     price: 49,  overage: 0.04 },
-  scale:      { limit: 5000,     price: 149, overage: 0.02 },
-  enterprise: { limit: Infinity, price: 499, overage: 0    },
+  starter:    { limit: 100,      price: 49,   overage: 0.75 },
+  pro:        { limit: 500,      price: 149,  overage: 0.40 },
+  growth:     { limit: 1000,     price: 249,  overage: 0.20 },
+  scale:      { limit: 5000,     price: 749,  overage: 0.10 },
+  enterprise: { limit: Infinity, price: 2499, overage: 0    },
 };
 
-// Stripe é opcional — só carrega se a chave existir
-let stripe = null;
-if (process.env.STRIPE_SECRET_KEY) {
-  try {
-    const { default: Stripe } = await import('stripe');
-    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-04-10' });
-  } catch (e) {
-    console.warn('[billing] Stripe não disponível:', e.message);
-  }
-}
+// Stripe — ativo somente se a chave estiver configurada
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-04-10' })
+  : null;
 
 function safeCompare(a, b) {
   try {
@@ -38,28 +33,57 @@ function safeCompare(a, b) {
   } catch { return false; }
 }
 
+function verifyPassword(input, stored) {
+  if (!stored || !input) return false;
+  // Formato scrypt: "salt:hash"
+  if (stored.includes(':') && stored.length > 60) {
+    try {
+      const [salt, hash] = stored.split(':');
+      const inputHash = scryptSync(String(input), salt, 64).toString('hex');
+      return timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(inputHash, 'hex'));
+    } catch { return false; }
+  }
+  // Legado: secret base64url
+  return safeCompare(input, stored);
+}
+
 function isValidClientKey(key) {
   return typeof key === 'string' && /^pvk_[a-f0-9]{32}$/.test(key);
 }
 
-async function authenticate(clientKey, secret) {
+async function authenticate(clientKey, password) {
   if (!clientKey || !isValidClientKey(clientKey)) return null;
-  if (!secret || typeof secret !== 'string' || secret.length < 10) return null;
+  if (!password || typeof password !== 'string') return null;
   const raw = await redis.get(`client:${clientKey}`);
   if (!raw) return null;
   const client = typeof raw === 'string' ? JSON.parse(raw) : raw;
   if (!client.active) return null;
-  if (!safeCompare(secret, client.secret || '')) return null;
+  const stored = client.passwordHash || client.secret || '';
+  if (!verifyPassword(password, stored)) return null;
   return client;
 }
 
-function calcBilling(client) {
-  const plan    = PLAN_LIMITS[client.plan] ?? PLAN_LIMITS.starter;
+const PLAN_NAMES = { starter:'Starter', pro:'Pro', growth:'Growth', scale:'Scale', enterprise:'Enterprise' };
+
+async function getPlanLimits(planId) {
+  // Tenta buscar plano customizado do Redis
+  const raw = await redis.get(`plan:${planId}`).catch(() => null);
+  if (raw) {
+    const p = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return { name: p.name || planId, limit: p.tryons === 0 ? Infinity : (Number(p.tryons) || 100), price: Number(p.price) || 0, overage: Number(p.overage) || 0 };
+  }
+  // Fallback para planos hardcoded
+  const fp = PLAN_LIMITS[planId] ?? PLAN_LIMITS.starter;
+  return { name: PLAN_NAMES[planId] || planId, ...fp };
+}
+
+async function calcBilling(client) {
+  const plan    = await getPlanLimits(client.plan || 'starter');
   const usage   = Number(client.usageCount) || 0;
   const excess  = Math.max(0, usage - plan.limit);
   const overageAmt = +(excess * plan.overage).toFixed(2);
   const total   = +(plan.price + overageAmt).toFixed(2);
-  return { planPrice: plan.price, limit: plan.limit, overage: plan.overage, usage, excess, overageAmt, total };
+  return { planName: plan.name, planPrice: plan.price, limit: plan.limit, overage: plan.overage, usage, excess, overageAmt, total };
 }
 
 // Gera data da próxima cobrança (5 de cada mês)
@@ -73,9 +97,9 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { action, clientKey, secret, ...params } = req.body || {};
+  const { action, clientKey, password, ...params } = req.body || {};
 
-  const client = await authenticate(clientKey, secret);
+  const client = await authenticate(clientKey, password);
   if (!client) return res.status(401).json({ error: 'Credenciais inválidas.' });
 
   const stripeEnabled = !!stripe;
@@ -83,7 +107,7 @@ export default async function handler(req, res) {
   try {
     // SUMMARY — resumo de billing do mês atual
     if (action === 'summary') {
-      const billing = calcBilling(client);
+      const billing = await calcBilling(client);
       const nextDate = nextBillingDate();
 
       let paymentMethod = null;
@@ -145,7 +169,7 @@ export default async function handler(req, res) {
       }
 
       // Sem Stripe: gera histórico mock baseado em Redis
-      const billing = calcBilling(client);
+      const billing = await calcBilling(client);
       const mock = [];
       const now = new Date();
       for (let i = 0; i < 3; i++) {
@@ -170,66 +194,104 @@ export default async function handler(req, res) {
       return res.json({ ok: true, invoices: mock, isMock: true });
     }
 
-    // CHECKOUT — cria sessão Stripe para pagar fatura ou fazer upgrade
-    if (action === 'checkout') {
-      if (!stripe) {
-        return res.status(503).json({ error: 'Stripe não configurado. Entre em contato com o suporte.' });
+    // Helper: garante customer Stripe e mantém o índice stripe:customer: → clientKey
+    async function ensureCustomer() {
+      if (client.stripeCustomerId) {
+        // Garante que o índice existe (migração silenciosa)
+        await redis.set(`stripe:customer:${client.stripeCustomerId}`, clientKey);
+        return client.stripeCustomerId;
       }
-      const { invoiceId, returnUrl } = params;
-      const origin = returnUrl || process.env.CLIENT_PANEL_URL || 'https://wvgtec.github.io/provador-virtual-landing/painel-cliente.html';
+      const customer = await stripe.customers.create({
+        email: client.email, name: client.name, metadata: { clientKey },
+      });
+      client.stripeCustomerId = customer.id;
+      await Promise.all([
+        redis.set(`client:${clientKey}`, JSON.stringify(client)),
+        redis.set(`stripe:customer:${customer.id}`, clientKey),
+      ]);
+      return customer.id;
+    }
 
-      // Se for pagar uma fatura específica
+    const pubKey = process.env.STRIPE_PUBLISHABLE_KEY || '';
+
+    // SETUP_INTENT — salvar/trocar cartão inline
+    if (action === 'setup_intent') {
+      if (!stripe) return res.status(503).json({ error: 'Stripe não configurado.' });
+      const customerId = await ensureCustomer();
+      const si = await stripe.setupIntents.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+      });
+      return res.json({ ok: true, clientSecret: si.client_secret, publishableKey: pubKey });
+    }
+
+    // PAY_INVOICE — pagar fatura inline
+    if (action === 'pay_invoice') {
+      if (!stripe) return res.status(503).json({ error: 'Stripe não configurado.' });
+      const { invoiceId } = params;
+      const customerId = await ensureCustomer();
+
+      // Fatura real do Stripe
       if (invoiceId && !invoiceId.startsWith('mock_')) {
         const inv = await stripe.invoices.retrieve(invoiceId);
-        if (inv.hosted_invoice_url) {
-          return res.json({ ok: true, url: inv.hosted_invoice_url });
+        if (inv.payment_intent) {
+          const pi = await stripe.paymentIntents.retrieve(inv.payment_intent);
+          return res.json({ ok: true, clientSecret: pi.client_secret, publishableKey: pubKey, amount: inv.amount_due / 100 });
         }
       }
 
-      // Checkout genérico (upgrade / renovação)
-      let customerId = client.stripeCustomerId;
-      if (!customerId) {
-        const customer = await stripe.customers.create({ email: client.email, name: client.name, metadata: { clientKey } });
-        customerId = customer.id;
-        await redis.set(`client:${clientKey}`, JSON.stringify({ ...client, stripeCustomerId: customerId }));
-      }
-
-      const session = await stripe.checkout.sessions.create({
+      // Sem fatura real: cria PaymentIntent avulso com boleto + cartão
+      const billing = await calcBilling(client);
+      const amountCents = Math.round(billing.total * 100) || 100;
+      const pi = await stripe.paymentIntents.create({
+        amount:   amountCents,
+        currency: 'brl',
         customer: customerId,
-        payment_method_types: ['card'],
-        mode: 'payment',
-        line_items: [{
-          price_data: {
-            currency: 'usd',
-            product_data: { name: `Mirage - Plano ${client.plan || 'starter'}` },
-            unit_amount: Math.round(calcBilling(client).total * 100),
-          },
-          quantity: 1,
-        }],
-        success_url: `${origin}?payment=success`,
-        cancel_url:  `${origin}?payment=cancel`,
+        payment_method_types: ['card', 'boleto'],
+        metadata: { clientKey, plan: client.plan || 'starter' },
       });
-
-      return res.json({ ok: true, url: session.url });
+      return res.json({ ok: true, clientSecret: pi.client_secret, publishableKey: pubKey, amount: billing.total });
     }
 
-    // PORTAL — cria sessão do Customer Portal do Stripe
-    if (action === 'portal') {
-      if (!stripe || !client.stripeCustomerId) {
-        return res.status(503).json({ error: 'Portal Stripe não disponível.' });
+    // PAYMENT_LINK — cria link de pagamento Stripe (boleto / pix / cartão)
+    if (action === 'payment_link') {
+      if (!stripe) return res.status(503).json({ error: 'Stripe não configurado.' });
+      const { invoiceId } = params;
+
+      // Se tem fatura real com hosted URL, retorna direto
+      if (invoiceId && !invoiceId.startsWith('mock_')) {
+        try {
+          const inv = await stripe.invoices.retrieve(invoiceId);
+          if (inv.hosted_invoice_url) {
+            return res.json({ ok: true, url: inv.hosted_invoice_url });
+          }
+        } catch (e) { /* continua */ }
       }
-      const returnUrl = params.returnUrl || process.env.CLIENT_PANEL_URL || 'https://wvgtec.github.io/provador-virtual-landing/painel-cliente.html';
-      const session = await stripe.billingPortal.sessions.create({
-        customer: client.stripeCustomerId,
-        return_url: returnUrl,
+
+      // Cria payment link avulso
+      const customerId2 = await ensureCustomer();
+      const billing = await calcBilling(client);
+      const amountCents = Math.round(billing.total * 100) || 100;
+      const product = await stripe.products.create({
+        name: `Mirage Provador Virtual — ${client.plan || 'starter'}`,
       });
-      return res.json({ ok: true, url: session.url });
+      const price = await stripe.prices.create({
+        unit_amount: amountCents,
+        currency:    'brl',
+        product:     product.id,
+      });
+      const link = await stripe.paymentLinks.create({
+        line_items: [{ price: price.id, quantity: 1 }],
+        customer_creation: 'always',
+        metadata: { clientKey },
+      });
+      return res.json({ ok: true, url: link.url });
     }
 
     return res.status(400).json({ error: 'Ação inválida.' });
 
   } catch (err) {
     console.error('[billing] Erro:', err);
-    return res.status(500).json({ error: 'Erro interno de billing.' });
+    return res.status(500).json({ error: 'Erro interno: ' + err.message });
   }
 }

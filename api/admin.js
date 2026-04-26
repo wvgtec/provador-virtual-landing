@@ -4,11 +4,17 @@
 
 import { Redis } from '@upstash/redis';
 import { randomBytes, timingSafeEqual, scryptSync } from 'crypto';
+import Stripe from 'stripe';
 
 const redis = new Redis({
   url:   process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
+
+// Stripe — ativo só se a chave estiver configurada
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-04-10' })
+  : null;
 
 // ─── Helpers de autenticação ──────────────────────────────────────────────────
 function generateKey()    { return 'pvk_' + randomBytes(16).toString('hex'); }
@@ -192,12 +198,205 @@ export default async function handler(req, res) {
       return res.json({ ok: true });
     }
 
+    // ─── GESTÃO DE PLANOS (Produtos) ────────────────────────────────────────
+
+    // LIST PLANS
+    if (action === 'listPlans') {
+      const ids = await redis.smembers('plans:index');
+      if (!ids?.length) return res.json({ ok: true, plans: [] });
+      const raws = await Promise.all(ids.map(id => redis.get(`plan:${id}`)));
+      const plans = raws.map(r => typeof r === 'string' ? JSON.parse(r) : r).filter(Boolean);
+      plans.sort((a, b) => (a.price || 0) - (b.price || 0));
+      return res.json({ ok: true, plans });
+    }
+
+    // CREATE PLAN
+    if (action === 'createPlan') {
+      const { name, tryons, price, overage } = body;
+      if (!name) return res.status(400).json({ error: 'name é obrigatório.' });
+      const id   = name.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 32) + '_' + Date.now().toString(36);
+      const plan = {
+        id,
+        name,
+        tryons:   Number(tryons)  || 0,
+        price:    Number(price)   || 0,
+        overage:  Number(overage) || 0,
+        createdAt: Date.now(),
+      };
+
+      // Sincroniza com Stripe — cria Produto + Preço recorrente mensal em BRL
+      if (stripe && plan.price > 0) {
+        try {
+          const stripeProduct = await stripe.products.create({
+            name,
+            metadata: { planId: id, source: 'mirage-admin' },
+          });
+          const stripePrice = await stripe.prices.create({
+            product:    stripeProduct.id,
+            unit_amount: Math.round(plan.price * 100), // centavos
+            currency:   'brl',
+            recurring:  { interval: 'month' },
+            metadata:   { planId: id },
+          });
+          plan.stripeProductId = stripeProduct.id;
+          plan.stripePriceId   = stripePrice.id;
+        } catch (e) {
+          console.error('[admin] createPlan Stripe error:', e.message);
+          // Continua sem Stripe — plano é salvo no Redis normalmente
+        }
+      }
+
+      await redis.set(`plan:${id}`, JSON.stringify(plan));
+      await redis.sadd('plans:index', id);
+      return res.status(201).json({ ok: true, plan });
+    }
+
+    // UPDATE PLAN
+    if (action === 'updatePlan') {
+      const { id, name, tryons, price, overage } = body;
+      if (!id) return res.status(400).json({ error: 'id é obrigatório.' });
+      const raw = await redis.get(`plan:${id}`);
+      if (!raw) return res.status(404).json({ error: 'Plano não encontrado.' });
+      const plan = typeof raw === 'string' ? JSON.parse(raw) : raw;
+
+      const priceChanged = price !== undefined && Number(price) !== plan.price;
+      const nameChanged  = name  !== undefined && name !== plan.name;
+
+      if (name    !== undefined) plan.name    = name;
+      if (tryons  !== undefined) plan.tryons  = Number(tryons);
+      if (price   !== undefined) plan.price   = Number(price);
+      if (overage !== undefined) plan.overage = Number(overage);
+
+      // Sincroniza com Stripe
+      if (stripe && plan.stripeProductId) {
+        try {
+          // Atualiza nome do produto se mudou
+          if (nameChanged) {
+            await stripe.products.update(plan.stripeProductId, { name: plan.name });
+          }
+          // Preço não pode ser editado no Stripe — arquiva o antigo e cria novo
+          if (priceChanged && plan.price > 0) {
+            if (plan.stripePriceId) {
+              await stripe.prices.update(plan.stripePriceId, { active: false });
+            }
+            const newPrice = await stripe.prices.create({
+              product:     plan.stripeProductId,
+              unit_amount: Math.round(plan.price * 100),
+              currency:    'brl',
+              recurring:   { interval: 'month' },
+              metadata:    { planId: id },
+            });
+            plan.stripePriceId = newPrice.id;
+          }
+        } catch (e) {
+          console.error('[admin] updatePlan Stripe error:', e.message);
+        }
+      } else if (stripe && !plan.stripeProductId && plan.price > 0) {
+        // Plano antigo sem produto Stripe — cria agora
+        try {
+          const stripeProduct = await stripe.products.create({
+            name: plan.name,
+            metadata: { planId: id, source: 'mirage-admin' },
+          });
+          const stripePrice = await stripe.prices.create({
+            product:     stripeProduct.id,
+            unit_amount: Math.round(plan.price * 100),
+            currency:    'brl',
+            recurring:   { interval: 'month' },
+            metadata:    { planId: id },
+          });
+          plan.stripeProductId = stripeProduct.id;
+          plan.stripePriceId   = stripePrice.id;
+        } catch (e) {
+          console.error('[admin] updatePlan Stripe create error:', e.message);
+        }
+      }
+
+      await redis.set(`plan:${id}`, JSON.stringify(plan));
+      return res.json({ ok: true, plan });
+    }
+
+    // DELETE PLAN
+    if (action === 'deletePlan') {
+      const { id } = body;
+      if (!id) return res.status(400).json({ error: 'id é obrigatório.' });
+
+      // Arquiva produto no Stripe antes de deletar do Redis
+      if (stripe) {
+        const planRaw = await redis.get(`plan:${id}`);
+        if (planRaw) {
+          const plan = typeof planRaw === 'string' ? JSON.parse(planRaw) : planRaw;
+          try {
+            if (plan.stripePriceId)   await stripe.prices.update(plan.stripePriceId, { active: false });
+            if (plan.stripeProductId) await stripe.products.update(plan.stripeProductId, { active: false });
+          } catch (e) {
+            console.error('[admin] deletePlan Stripe error:', e.message);
+          }
+        }
+      }
+
+      await redis.del(`plan:${id}`);
+      await redis.srem('plans:index', id);
+      return res.json({ ok: true });
+    }
+
+    // SYNC PLANS — força sincronização de todos os planos sem stripePriceId para o Stripe
+    if (action === 'syncPlans') {
+      if (!stripe) return res.status(503).json({ error: 'Stripe não configurado.' });
+
+      const ids = await redis.smembers('plans:index');
+      if (!ids?.length) return res.json({ ok: true, synced: [], skipped: [] });
+
+      const raws = await Promise.all(ids.map(id => redis.get(`plan:${id}`)));
+      const plans = raws.map(r => (typeof r === 'string' ? JSON.parse(r) : r)).filter(Boolean);
+
+      const synced  = [];
+      const skipped = [];
+      const errors  = [];
+
+      for (const plan of plans) {
+        // Já tem Stripe — pula
+        if (plan.stripeProductId && plan.stripePriceId) {
+          skipped.push({ id: plan.id, name: plan.name, reason: 'já sincronizado' });
+          continue;
+        }
+        if (!plan.price || plan.price <= 0) {
+          skipped.push({ id: plan.id, name: plan.name, reason: 'preço zero' });
+          continue;
+        }
+        try {
+          // Se tem produto mas não tem preço (caso parcial)
+          let productId = plan.stripeProductId;
+          if (!productId) {
+            const stripeProduct = await stripe.products.create({
+              name: plan.name,
+              metadata: { planId: plan.id, source: 'mirage-admin-sync' },
+            });
+            productId = stripeProduct.id;
+            plan.stripeProductId = productId;
+          }
+          const stripePrice = await stripe.prices.create({
+            product:     productId,
+            unit_amount: Math.round(plan.price * 100),
+            currency:    'brl',
+            recurring:   { interval: 'month' },
+            metadata:    { planId: plan.id },
+          });
+          plan.stripePriceId = stripePrice.id;
+          await redis.set(`plan:${plan.id}`, JSON.stringify(plan));
+          synced.push({ id: plan.id, name: plan.name, stripePriceId: stripePrice.id });
+        } catch (e) {
+          errors.push({ id: plan.id, name: plan.name, error: e.message });
+        }
+      }
+
+      return res.json({ ok: true, synced, skipped, errors });
+    }
+
     // CHANGE PLAN
     if (action === 'changePlan') {
       const { key, plan } = body;
       if (!key || !isValidClientKey(key)) return res.status(400).json({ error: 'key inválida.' });
-      const validPlans = ['starter', 'pro', 'growth', 'scale', 'enterprise'];
-      if (!validPlans.includes(plan)) return res.status(400).json({ error: 'Plano inválido.' });
       const raw = await redis.get(`client:${key}`);
       if (!raw) return res.status(404).json({ error: 'Cliente não encontrado' });
       const client = typeof raw === 'string' ? JSON.parse(raw) : raw;

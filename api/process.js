@@ -3,10 +3,12 @@
 // NUNCA deve ser chamado diretamente pelo browser — só pelo QStash.
 
 import { Redis } from '@upstash/redis';
-import { Receiver } from '@upstash/qstash';
+import { Receiver, Client as QStashClient } from '@upstash/qstash';
 
-const redis  = new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN });
-const BUCKET = process.env.GCS_BUCKET || 'mirage-tryon';
+const redis   = new Redis({ url: process.env.UPSTASH_REDIS_REST_URL, token: process.env.UPSTASH_REDIS_REST_TOKEN });
+const BUCKET  = process.env.GCS_BUCKET || 'mirage-tryon';
+const qstash  = new QStashClient({ token: process.env.QSTASH_TOKEN });
+const APP_URL = process.env.APP_URL || 'https://provador-virtual-brown.vercel.app';
 
 // ─── Google Auth ──────────────────────────────────────────────────────────────
 
@@ -130,6 +132,12 @@ const receiver = new Receiver({
   nextSigningKey:    process.env.QSTASH_NEXT_SIGNING_KEY,
 });
 
+// ─── Log estruturado ─────────────────────────────────────────────────────────
+
+function log(event, data = {}) {
+  console.log(JSON.stringify({ ts: new Date().toISOString(), event, ...data }));
+}
+
 // ─── Handler principal ────────────────────────────────────────────────────────
 
 export default async function processHandler(req, res) {
@@ -151,9 +159,28 @@ export default async function processHandler(req, res) {
   const raw = await redis.get(`job:${jobId}`);
   if (!raw) return res.status(404).json({ error: 'Job não encontrado ou expirado' });
   const job = typeof raw === 'string' ? JSON.parse(raw) : raw;
-  const { personImageUrl, garmentImageUrl, category, projectId, clientKey, lead, productUrl } = job;
 
-  await redis.set(`job:${jobId}`, JSON.stringify({ status: 'processing', startedAt: Date.now() }), { ex: 3600 });
+  // ─── Idempotência — evita re-processamento em retry do QStash ────────────
+  if (job.status === 'done') {
+    log('process_idempotent', { jobId });
+    return res.status(200).json({ jobId, status: 'done', idempotent: true });
+  }
+
+  const { personImageUrl, garmentImageUrl, category, projectId, clientKey, lead, productUrl, productName, hash } = job;
+  const startedAt = Date.now();
+
+  log('process_start', { jobId, clientKey, category });
+
+  // Marca como processing e move no índice por status
+  await Promise.all([
+    redis.set(`job:${jobId}`, JSON.stringify({
+      status: 'processing', startedAt, hash, clientKey,
+    }), { ex: 300 }),
+    ...(clientKey ? [
+      redis.zrem(`jobs:${clientKey}:pending`, jobId),
+      redis.zadd(`jobs:${clientKey}:processing`, { score: Date.now(), member: jobId }),
+    ] : []),
+  ]);
 
   try {
     // Token único para Vertex AI + GCS
@@ -167,45 +194,91 @@ export default async function processHandler(req, res) {
     const outputPath = `outputs/${jobId}.png`;
     const resultUrl  = await uploadToGCS(accessToken, outputPath, Buffer.from(imageBase64, 'base64'), 'image/png');
 
-    // Atualiza status com URL do resultado
-    await redis.set(
-      `job:${jobId}`,
-      JSON.stringify({ status: 'done', resultImage: resultUrl, completedAt: Date.now() }),
-      { ex: 3600 }
-    );
+    const completedAt = Date.now();
+
+    // Atualiza status com URL do resultado — expira em 1h
+    await Promise.all([
+      redis.set(
+        `job:${jobId}`,
+        JSON.stringify({ status: 'done', resultImage: resultUrl, completedAt, clientKey, productUrl, productName, hash }),
+        { ex: 3600 }
+      ),
+      // Salva cache pelo hash — evita re-processar o mesmo par por 24h
+      ...(hash ? [redis.set(`cache:${hash}`, resultUrl, { ex: 86400 })] : []),
+      // Move no índice por status
+      ...(clientKey ? [
+        redis.zrem(`jobs:${clientKey}:processing`, jobId),
+        redis.zadd(`jobs:${clientKey}:done`, { score: completedAt, member: jobId }),
+        redis.expire(`jobs:${clientKey}:done`, 60 * 60 * 24 * 90),
+      ] : []),
+    ]);
+
+    // Foto da pessoa: deletada em 3min (privacidade)
+    // Resultado: deletado em 1h (tempo para o usuário ver e salvar)
+    const personPath = new URL(personImageUrl).pathname.replace(`/${BUCKET}/`, '');
+    await Promise.all([
+      qstash.publishJSON({
+        url:   `${APP_URL}/api/cleanup-person`,
+        body:  { jobId, personPath },
+        delay: 180,
+      }).catch(e => log('cleanup_person_schedule_warn', { jobId, error: e.message })),
+      qstash.publishJSON({
+        url:   `${APP_URL}/api/cleanup`,
+        body:  { jobId, objectPath: outputPath },
+        delay: 3600,
+      }).catch(e => log('cleanup_result_schedule_warn', { jobId, error: e.message })),
+    ]);
 
     // ─── Registra lead e analytics ────────────────────────────────────────
+    const ts = Date.now();
+    const finalProductUrl  = productUrl  || garmentImageUrl;
+    const finalProductName = productName || finalProductUrl;
+
     if (clientKey && lead) {
-      const ts = Date.now();
-      const finalProductUrl = productUrl || garmentImageUrl;
       await Promise.all([
-        // Índice de leads por cliente (sorted set, score = timestamp)
         redis.zadd(`leads:${clientKey}`, { score: ts, member: jobId }),
-        // Dados completos do lead
         redis.set(`lead:${jobId}`, JSON.stringify({
           name:        lead.name,
           email:       lead.email,
           whatsapp:    lead.whatsapp,
           productUrl:  finalProductUrl,
+          productName: finalProductName,
           resultUrl,
           jobId,
           completedAt: ts,
           clientKey,
-        }), { ex: 86400 * 90 }), // 90 dias
-        // Contador de produto por URL (sorted set, score = count)
-        redis.zincrby(`products:${clientKey}`, 1, finalProductUrl),
+        }), { ex: 86400 * 90 }),
       ]);
     }
 
+    // Analytics de produto (independente de lead)
+    if (clientKey) {
+      const productKey = finalProductUrl;
+      await Promise.all([
+        redis.zincrby(`products:${clientKey}`, 1, productKey),
+        // Armazena nome do produto para exibição no painel
+        redis.hset(`product_names:${clientKey}`, { [productKey]: finalProductName }),
+      ]);
+    }
+
+    log('process_done', { jobId, clientKey, durationMs: Date.now() - startedAt });
     return res.status(200).json({ jobId, status: 'done' });
 
   } catch (err) {
-    console.error(`[process] Erro no job ${jobId}:`, err);
-    await redis.set(
-      `job:${jobId}`,
-      JSON.stringify({ status: 'error', error: err.message, failedAt: Date.now() }),
-      { ex: 3600 }
-    );
+    log('process_error', { jobId, clientKey, error: err.message, durationMs: Date.now() - startedAt });
+    const failedAt = Date.now();
+    await Promise.all([
+      redis.set(
+        `job:${jobId}`,
+        JSON.stringify({ status: 'error', error: err.message, failedAt, clientKey }),
+        { ex: 300 }
+      ),
+      ...(clientKey ? [
+        redis.zrem(`jobs:${clientKey}:processing`, jobId),
+        redis.zadd(`jobs:${clientKey}:error`, { score: failedAt, member: jobId }),
+        redis.expire(`jobs:${clientKey}:error`, 60 * 60 * 24 * 7),
+      ] : []),
+    ]);
     return res.status(200).json({ jobId, status: 'error', error: 'Erro ao processar imagem.' });
   }
 }

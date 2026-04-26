@@ -583,7 +583,7 @@ const PLANS = {
 const WIDGET_VERSION = '6.0';
 
 // ─── Estado ────────────────────────────────────────────────────────────────────
-let apiUrl   = 'https://provador-virtual-brown.vercel.app';
+let apiUrl   = window.location.origin;
 let apiPass  = '';
 let clients  = [];
 let allJobs  = [];
@@ -594,8 +594,8 @@ let snippetStore = '';
 let planChangeKey = null;
 let dashCharts = {};
 
-// URL da API — fixa no código. Para mudar, edite aqui.
-const API_URL = 'https://provador-virtual-brown.vercel.app';
+// URL da API — detectada automaticamente pelo domínio atual.
+const API_URL = window.location.origin;
 
 // ─── Login ─────────────────────────────────────────────────────────────────────
 async function doLogin() {
@@ -683,7 +683,12 @@ function navigate(view, navEl) {
     ta.innerHTML = `<button class="btn btn-secondary btn-sm" onclick="loadJobs()">Atualizar</button>`;
     loadJobs();
   } else if (view === 'produtos') {
-    ta.innerHTML = `<button class="btn btn-primary btn-sm" onclick="openPlanModal()">+ Novo plano</button>`;
+    ta.innerHTML = `
+      <button class="btn btn-secondary btn-sm" onclick="syncWithStripe()" id="btn-sync-stripe" title="Cria produto e preço no Stripe para planos que ainda não foram sincronizados">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        Sincronizar com Stripe
+      </button>
+      <button class="btn btn-primary btn-sm" onclick="openPlanModal()">+ Novo plano</button>`;
     loadProdutos();
   }
 }
@@ -1167,9 +1172,20 @@ function renderProdutos() {
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted);">Nenhum plano cadastrado ainda.</td></tr>';
     return;
   }
-  tbody.innerHTML = produtosCache.map(p => `
+  tbody.innerHTML = produtosCache.map(p => {
+    const hasStripe = !!(p.stripePriceId);
+    const stripeBadge = hasStripe
+      ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:600;color:#16a34a;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;padding:1px 6px;">
+           <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Stripe
+         </span>`
+      : `<span style="font-size:10px;font-weight:600;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:1px 6px;">sem Stripe</span>`;
+    return `
     <tr>
-      <td><strong>${esc(p.name)}</strong> <span style="font-size:11px;color:var(--muted);margin-left:4px;">${esc(p.id)}</span></td>
+      <td>
+        <strong>${esc(p.name)}</strong>
+        <span style="font-size:11px;color:var(--muted);margin-left:4px;">${esc(p.id)}</span>
+        <div style="margin-top:3px;">${stripeBadge}</div>
+      </td>
       <td>${p.tryons === 0 ? 'Ilimitado' : Number(p.tryons).toLocaleString('pt-BR')}</td>
       <td>R$ ${Number(p.overage).toFixed(2)}</td>
       <td>R$ ${Number(p.price).toFixed(2)}/mês</td>
@@ -1177,7 +1193,8 @@ function renderProdutos() {
         <button class="btn btn-secondary btn-sm" onclick="openPlanModal('${esc(p.id)}')">Editar</button>
         <button class="btn btn-danger btn-sm" onclick="deleteProduto('${esc(p.id)}','${esc(p.name)}')">Excluir</button>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 
   // Atualiza o select de trocar plano do cliente
   const sel = document.getElementById('change-plan-select');
@@ -1226,6 +1243,35 @@ async function deleteProduto(id, name) {
   const r = await apiFetch('deletePlan', { id });
   if (!r.ok) { toast(r.error || 'Erro ao excluir.', 'error'); return; }
   toast('Plano excluído.', 'success');
+  await loadProdutos();
+}
+
+async function syncWithStripe() {
+  const btn = document.getElementById('btn-sync-stripe');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sincronizando...'; }
+
+  const r = await apiFetch('syncPlans');
+
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Sincronizar com Stripe`;
+  }
+
+  if (!r.ok) { toast(r.error || 'Erro ao sincronizar.', 'error'); return; }
+
+  const synced  = r.synced  || [];
+  const errors  = r.errors  || [];
+  const skipped = r.skipped || [];
+
+  if (synced.length === 0 && errors.length === 0) {
+    toast(`Todos os planos já estavam sincronizados (${skipped.length} ignorados).`, 'success');
+  } else if (errors.length > 0) {
+    toast(`${synced.length} sincronizado(s), ${errors.length} com erro. Veja o console.`, 'error');
+    console.error('[syncPlans] erros:', errors);
+  } else {
+    toast(`${synced.length} plano(s) sincronizado(s) com o Stripe.`, 'success');
+  }
+
   await loadProdutos();
 }
 
@@ -1360,7 +1406,7 @@ function openSnippet(key, store) {
 
 function updateSnippet() {
   const platform = document.getElementById('snippet-platform').value;
-  const base  = 'https://provador-virtual-brown.vercel.app';
+  const base  = window.location.origin;
   const wUrl  = `${base}/widget/tryon-widget.js?v=6.0`;
   const store = (_snippetStore || 'Minha Loja').replace(/'/g, "\\'");
   const garments = {
