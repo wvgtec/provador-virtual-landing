@@ -1,548 +1,758 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mirage — Painel do Cliente</title>
-  <link rel="icon" type="image/png" href="logo-mirage.png">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-    :root {
-      --purple: #6C5CE7; --purple-dark: #5649c0; --purple-light: #f0eeff;
-      --text: #1a1a2e; --muted: #64748b; --border: #e2e8f0;
-      --green: #00b894; --red: #e17055; --bg: #f8faff;
-    }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
-
-    /* LOGIN */
-    .login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-    .login-box {
-      background: #fff; border-radius: 20px; padding: 44px 40px;
-      width: 100%; max-width: 380px; box-shadow: 0 8px 48px rgba(0,0,0,.10); text-align: center;
-    }
-    .login-box img { height: 56px; margin-bottom: 16px; }
-    .login-box h1 { font-size: 20px; font-weight: 800; color: var(--purple); margin-bottom: 6px; }
-    .login-box p { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
-    .login-box input {
-      width: 100%; padding: 13px 15px; border: 1.5px solid var(--border);
-      border-radius: 10px; font-size: 14px; margin-bottom: 12px; outline: none;
-      font-family: inherit; transition: border-color .2s;
-    }
-    .login-box input:focus { border-color: var(--purple); }
-    .login-btn {
-      width: 100%; background: var(--purple); color: #fff; border: none;
-      padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 700;
-      cursor: pointer; transition: background .2s; font-family: inherit;
-    }
-    .login-btn:hover { background: var(--purple-dark); }
-    .login-btn:disabled { background: #c0b8f0; cursor: not-allowed; }
-    .login-error { color: var(--red); font-size: 13px; margin-top: 12px; min-height: 18px; }
-    .key-preview { font-family: monospace; font-size: 12px; color: var(--muted); background: var(--bg); padding: 8px 12px; border-radius: 8px; margin-bottom: 16px; word-break: break-all; }
-
-    /* APP */
-    .app { display: none; min-height: 100vh; flex-direction: column; }
-    .app.visible { display: flex; }
-
-    /* TOP BAR */
-    .topbar {
-      background: #fff; border-bottom: 1px solid var(--border);
-      padding: 0 28px; height: 64px; display: flex; align-items: center;
-      justify-content: space-between; position: sticky; top: 0; z-index: 50;
-    }
-    .topbar-logo { display: flex; align-items: center; gap: 10px; }
-    .topbar-logo img { height: 36px; }
-    .topbar-logo span { font-size: 14px; font-weight: 600; color: var(--muted); }
-    .topbar-right { display: flex; align-items: center; gap: 16px; }
-    .client-key-badge { font-family: monospace; font-size: 11px; background: var(--purple-light); color: var(--purple); padding: 5px 10px; border-radius: 6px; }
-    .logout-btn { background: none; border: none; cursor: pointer; font-size: 13px; color: var(--muted); font-family: inherit; }
-    .logout-btn:hover { color: var(--text); }
-
-    /* TABS */
-    .tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); padding: 0 28px; background: #fff; }
-    .tab {
-      padding: 14px 22px; font-size: 14px; font-weight: 600; cursor: pointer;
-      color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -2px;
-      transition: all .2s;
-    }
-    .tab:hover { color: var(--purple); }
-    .tab.active { color: var(--purple); border-bottom-color: var(--purple); }
-
-    /* MAIN */
-    .main { padding: 28px; flex: 1; max-width: 1200px; width: 100%; margin: 0 auto; }
-
-    /* VIEWS */
-    .view { display: none; }
-    .view.active { display: block; }
-
-    /* STATS */
-    .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 28px; }
-    .stat-card { background: #fff; border-radius: 14px; padding: 22px; border: 1px solid var(--border); }
-    .stat-card .icon { font-size: 28px; margin-bottom: 10px; }
-    .stat-card .num { font-size: 36px; font-weight: 900; color: var(--purple); letter-spacing: -1.5px; }
-    .stat-card .lbl { font-size: 13px; color: var(--muted); margin-top: 4px; font-weight: 500; }
-
-    /* CARDS */
-    .card { background: #fff; border-radius: 14px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 24px; }
-    .card-head { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-    .card-head h3 { font-size: 15px; font-weight: 700; }
-    .card-body { padding: 22px; }
-
-    /* CHART */
-    .chart-wrap { position: relative; height: 260px; }
-
-    /* TABLE */
-    table { width: 100%; border-collapse: collapse; }
-    thead { background: #fafafa; }
-    th { padding: 11px 16px; text-align: left; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--border); }
-    td { padding: 13px 16px; font-size: 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #fafbff; }
-
-    /* BUTTONS */
-    .btn { padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: all .2s; }
-    .btn-primary { background: var(--purple); color: #fff; }
-    .btn-primary:hover { background: var(--purple-dark); }
-    .btn-ghost { background: transparent; border: 1.5px solid var(--border); color: var(--muted); }
-    .btn-ghost:hover { border-color: var(--purple); color: var(--purple); }
-
-    /* SEARCH */
-    .search-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-    .search-input { padding: 9px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; font-family: inherit; min-width: 220px; }
-    .search-input:focus { border-color: var(--purple); }
-
-    /* EMPTY */
-    .empty { text-align: center; padding: 56px 20px; color: var(--muted); }
-    .empty .icon { font-size: 44px; margin-bottom: 12px; }
-    .empty p { font-size: 15px; }
-
-    /* LOADING */
-    .loading { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
-
-    /* TOP PRODUCTS */
-    .product-row { display: flex; align-items: center; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--border); }
-    .product-row:last-child { border-bottom: none; }
-    .product-img { width: 48px; height: 48px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; background: var(--purple-light); }
-    .product-url { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
-    .product-count { font-weight: 800; font-size: 20px; color: var(--purple); margin-left: auto; flex-shrink: 0; }
-    .bar-wrap { flex: 1; height: 6px; background: var(--purple-light); border-radius: 999px; overflow: hidden; }
-    .bar-fill { height: 100%; background: var(--purple); border-radius: 999px; transition: width .8s ease; }
-
-    /* RESULT THUMB */
-    .result-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid var(--border); cursor: pointer; }
-
-    .toast {
-      position: fixed; bottom: 24px; right: 24px;
-      background: var(--text); color: #fff; padding: 12px 20px;
-      border-radius: 10px; font-size: 14px; font-weight: 500;
-      opacity: 0; transition: opacity .3s; z-index: 999; pointer-events: none;
-    }
-    .toast.show { opacity: 1; }
-
-    @media (max-width: 640px) {
-      .topbar { padding: 0 16px; }
-      .main { padding: 16px; }
-      .tabs { padding: 0 16px; overflow-x: auto; }
-      .tab { white-space: nowrap; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mirage - Minha Conta</title>
+<link rel="icon" type="image/png" href="logo-mirage.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F7F9FC;--card:#FFFFFF;--border:#E6E8EC;--text:#0A0A0A;--muted:#6B7280;
+  --primary:#635BFF;--primary-light:#EEF0FF;
+  --success:#16A34A;--success-light:#F0FDF4;
+  --warning:#F59E0B;--warning-light:#FFFBEB;
+  --error:#DC2626;--error-light:#FEF2F2;
+  --sidebar-w:240px;--header-h:60px;
+}
+html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+a{color:inherit;text-decoration:none}button{font-family:inherit;cursor:pointer}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center}
+.login-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:400px;box-shadow:0 4px 24px rgba(0,0,0,.06)}
+.login-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px}
+.login-logo-mark{width:36px;height:36px;background:var(--primary);border-radius:10px;display:flex;align-items:center;justify-content:center}
+.login-logo-mark svg{color:#fff}
+.login-logo span{font-size:20px;font-weight:800;letter-spacing:-.03em}
+.login-card h1{font-size:22px;font-weight:700;margin-bottom:4px}
+.login-card p{color:var(--muted);font-size:13px;margin-bottom:24px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+.field input,.field select,.field textarea{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;transition:border-color .15s;background:var(--bg)}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px var(--primary-light)}
+.field textarea{resize:vertical;min-height:80px}
+.login-err{color:var(--error);font-size:13px;margin-top:10px;text-align:center;min-height:20px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;border:1px solid transparent;transition:all .15s;cursor:pointer;font-family:inherit;white-space:nowrap}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:#4f46e5}
+.btn-secondary{background:var(--card);border-color:var(--border);color:var(--text)}.btn-secondary:hover{background:var(--bg)}
+.btn-danger{background:var(--error-light);border-color:#fecaca;color:var(--error)}.btn-danger:hover{background:var(--error);color:#fff;border-color:var(--error)}
+.btn-success{background:var(--success-light);border-color:#bbf7d0;color:var(--success)}.btn-success:hover{background:var(--success);color:#fff}
+.btn-warning{background:var(--warning-light);border-color:#fde68a;color:#92400e}.btn-warning:hover{background:var(--warning);color:#fff}
+.btn-sm{padding:6px 12px;font-size:12px}.btn-full{width:100%}.btn:disabled{opacity:.5;cursor:not-allowed}
+.app{display:none;height:100vh}.app.visible{display:flex}
+.sidebar{width:var(--sidebar-w);background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:fixed;top:0;left:0;bottom:0;z-index:40;overflow-y:auto}
+.sidebar-brand{padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.sidebar-brand-mark{width:28px;height:28px;background:var(--primary);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sidebar-brand-mark svg{color:#fff}
+.sidebar-brand span{font-size:16px;font-weight:800;letter-spacing:-.02em}
+.sidebar-section{padding:8px 12px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;transition:all .15s;margin-bottom:2px;border:1px solid transparent}
+.nav-item:hover{background:var(--bg);color:var(--text)}
+.nav-item.active{background:var(--primary-light);color:var(--primary);font-weight:600;border-color:#d4d1ff}
+.nav-item svg{flex-shrink:0;width:16px;height:16px}
+.nav-badge{margin-left:auto;background:var(--error);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px}
+.sidebar-footer{margin-top:auto;border-top:1px solid var(--border);padding:12px}
+.main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{height:var(--header-h);border-bottom:1px solid var(--border);background:var(--card);display:flex;align-items:center;padding:0 24px;gap:12px;position:sticky;top:0;z-index:30}
+.topbar-title{font-size:15px;font-weight:700}
+.topbar-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+.content{padding:24px;flex:1;overflow-y:auto;max-width:1100px}
+.view{display:none}.view.active{display:block}
+.alert{display:flex;align-items:center;gap:12px;padding:12px 16px;border-radius:10px;border:1px solid;font-size:13px;margin-bottom:14px}
+.alert-warning{background:var(--warning-light);border-color:#fde68a;color:#92400e}
+.alert-error{background:var(--error-light);border-color:#fecaca;color:var(--error)}
+.alert-success{background:var(--success-light);border-color:#bbf7d0;color:#166534}
+.alert-info{background:var(--primary-light);border-color:#d4d1ff;color:var(--primary)}
+.alert-icon{flex-shrink:0;font-size:16px}.alert-body{flex:1}
+.alert-title{font-weight:600}.alert-sub{font-size:12px;opacity:.85;margin-top:2px}
+.alert .btn{margin-left:auto;flex-shrink:0}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px}
+.kpi-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.kpi-value{font-size:26px;font-weight:800;letter-spacing:-.03em;line-height:1}
+.kpi-sub{font-size:11px;color:var(--muted);margin-top:4px}
+.progress-wrap{background:#F3F4F6;border-radius:99px;height:8px;overflow:hidden}
+.progress-fill{height:100%;border-radius:99px;transition:width .4s ease}
+.progress-fill.ok{background:var(--success)}.progress-fill.warn{background:var(--warning)}.progress-fill.over{background:var(--error)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.card-title{font-size:14px;font-weight:700}
+.card-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.section-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+@media(max-width:720px){.section-grid{grid-template-columns:1fr}}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:8px 12px;border-bottom:1px solid var(--border)}
+td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}tr:hover td{background:var(--bg)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-success{background:var(--success-light);color:var(--success)}
+.badge-warning{background:var(--warning-light);color:#92400e}
+.badge-error{background:var(--error-light);color:var(--error)}
+.badge-muted{background:#F3F4F6;color:var(--muted)}
+.badge-primary{background:var(--primary-light);color:var(--primary)}
+.jobs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.job-card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.job-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08)}
+.job-img{width:100%;aspect-ratio:3/4;object-fit:cover;background:var(--bg);display:block}
+.job-img-ph{width:100%;aspect-ratio:3/4;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--muted);font-size:11px}
+.job-meta{padding:8px 10px}.job-time{font-size:11px;color:var(--muted);margin-top:4px}
+.code-block{background:#0F172A;color:#E2E8F0;border-radius:10px;padding:16px;font-family:'Courier New',monospace;font-size:12px;line-height:1.6;overflow-x:auto;position:relative;margin-top:8px}
+.code-copy-btn{position:absolute;top:10px;right:10px;background:rgba(255,255,255,.1);color:#CBD5E1;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:inherit}
+.code-copy-btn:hover{background:rgba(255,255,255,.2)}
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px;gap:12px}
+.info-row:last-child{border-bottom:none}
+.info-row-label{color:var(--muted);flex-shrink:0}.info-row-value{font-weight:500;text-align:right}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border-radius:16px;padding:28px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.modal-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px}
+.modal-title{font-size:16px;font-weight:700}
+.modal-close{background:none;border:none;font-size:22px;color:var(--muted);cursor:pointer;line-height:1;padding:0}
+.empty{text-align:center;padding:40px 24px;color:var(--muted)}
+.empty-icon{font-size:32px;margin-bottom:10px}
+.empty-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px}
+.filter-bar{display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.filter-bar input,.filter-bar select{padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:var(--card)}
+.filter-bar input:focus,.filter-bar select:focus{border-color:var(--primary)}
+.text-muted{color:var(--muted)}.text-success{color:var(--success)}.text-error{color:var(--error)}.text-warning{color:var(--warning)}
+.fw-600{font-weight:600}.mt-8{margin-top:8px}.mt-16{margin-top:16px}
+.billing-total{font-size:32px;font-weight:800;letter-spacing:-.04em}
+</style>
 </head>
 <body>
 
-<!-- LOGIN -->
-<div class="login-screen" id="login-screen">
-  <div class="login-box">
-    <img src="logo-mirage.png" alt="Mirage">
-    <h1>Meu Painel</h1>
-    <p id="login-desc">Entre com a senha enviada pela equipe Mirage</p>
-    <div class="key-preview" id="key-preview"></div>
-    <input type="password" id="login-pass" placeholder="Sua senha de acesso" onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="login-btn" id="login-btn" onclick="doLogin()">Entrar</button>
-    <div class="login-error" id="login-error"></div>
+<div id="loginWrap" class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-mark">
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <span>Mirage</span>
+    </div>
+    <h1>Minha Conta</h1>
+    <p>Entre com seu email e senha de acesso.</p>
+    <div class="field">
+      <label>Email</label>
+      <input id="loginEmail" type="email" placeholder="seu@email.com" autocomplete="email">
+    </div>
+    <div class="field">
+      <label>Senha</label>
+      <input id="loginPassword" type="password" placeholder="••••••••••" autocomplete="current-password">
+    </div>
+    <button id="loginBtn" class="btn btn-primary btn-full" onclick="doLogin()">Entrar</button>
+    <div id="loginErr" class="login-err"></div>
   </div>
 </div>
 
-<!-- APP -->
-<div class="app" id="app">
-  <div class="topbar">
-    <div class="topbar-logo">
-      <img src="logo-mirage.png" alt="Mirage">
-      <span id="topbar-name">Painel do cliente</span>
+<div id="app" class="app">
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-mark">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <span>Mirage</span>
     </div>
-    <div class="topbar-right">
-      <span class="client-key-badge" id="topbar-key"></span>
-      <button class="logout-btn" onclick="doLogout()">Sair</button>
+    <div class="sidebar-section">
+      <div class="nav-item active" onclick="nav('dashboard')">
+        <svg fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" onclick="nav('geracoes')">
+        <svg fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" stroke="currentColor" stroke-width="2"/><path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Gerações
+      </div>
+      <div class="nav-item" onclick="nav('produtos')">
+        <svg fill="none" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Produtos
+      </div>
+      <div class="nav-item" onclick="nav('leads')">
+        <svg fill="none" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Leads
+      </div>
+      <div class="nav-item" onclick="nav('integracao')">
+        <svg fill="none" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="8 6 2 12 8 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Integração
+      </div>
+      <div class="nav-item" onclick="nav('billing')">
+        <svg fill="none" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" stroke="currentColor" stroke-width="2"/><line x1="1" y1="10" x2="23" y2="10" stroke="currentColor" stroke-width="2"/></svg>
+        Billing
+        <span id="billingBadge" class="nav-badge" style="display:none">!</span>
+      </div>
+      <div class="nav-item" onclick="nav('config')">
+        <svg fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="2"/></svg>
+        Configurações
+      </div>
     </div>
-  </div>
-
-  <div class="tabs">
-    <div class="tab active" onclick="showView('dashboard', this)">📊 Dashboard</div>
-    <div class="tab" onclick="showView('leads', this)">👤 Emails / Leads</div>
-  </div>
+    <div class="sidebar-footer">
+      <div style="padding:8px 8px 10px;">
+        <div style="font-size:13px;font-weight:600;" id="sidebarStoreName">-</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;" id="sidebarPlan">-</div>
+      </div>
+      <button class="btn btn-secondary btn-full btn-sm" onclick="doLogout()">Sair da conta</button>
+    </div>
+  </nav>
 
   <div class="main">
+    <div class="topbar">
+      <span class="topbar-title" id="topbarTitle">Dashboard</span>
+      <div class="topbar-actions" id="topbarActions"></div>
+    </div>
+    <div class="content">
 
-    <!-- DASHBOARD -->
-    <div class="view active" id="view-dashboard">
-      <div class="stats-row">
-        <div class="stat-card"><div class="icon">👗</div><div class="num" id="ds-jobs">-</div><div class="lbl">Tryons realizados</div></div>
-        <div class="stat-card"><div class="icon">👤</div><div class="num" id="ds-leads">-</div><div class="lbl">Leads capturados</div></div>
-        <div class="stat-card"><div class="icon">📈</div><div class="num" id="ds-conv">-</div><div class="lbl">Taxa de lead</div></div>
-      </div>
-
-      <div class="card">
-        <div class="card-head">
-          <h3>Tryons por dia (últimos 30 dias)</h3>
-          <button class="btn btn-ghost" onclick="loadDashboard()">Atualizar</button>
+      <div id="view-dashboard" class="view active">
+        <div id="dashAlerts"></div>
+        <div class="kpi-grid" id="dashKpis"></div>
+        <div class="section-grid">
+          <div class="card">
+            <div class="card-header">
+              <div><div class="card-title">Uso do plano</div><div class="card-sub" id="dashPlanSub">carregando...</div></div>
+              <button class="btn btn-sm btn-primary" onclick="nav('billing')">Ver billing</button>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
+              <span id="dashUsageLabel">-</span><span id="dashUsagePct" class="fw-600">-</span>
+            </div>
+            <div class="progress-wrap"><div class="progress-fill ok" id="dashProgress" style="width:0%"></div></div>
+            <div class="mt-16">
+              <div class="info-row"><span class="info-row-label">Excedente estimado</span><span class="info-row-value fw-600" id="dashOverage">-</span></div>
+              <div class="info-row"><span class="info-row-label">Total estimado este mês</span><span class="info-row-value fw-600" id="dashTotal">-</span></div>
+              <div class="info-row"><span class="info-row-label">Próxima cobrança</span><span class="info-row-value" id="dashNextDate">-</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">Gerações recentes</div>
+              <button class="btn btn-sm btn-secondary" onclick="nav('geracoes')">Ver todas</button>
+            </div>
+            <div id="dashRecentJobs" class="jobs-grid" style="grid-template-columns:repeat(3,1fr);gap:8px;"></div>
+          </div>
         </div>
-        <div class="card-body">
-          <div class="chart-wrap">
-            <canvas id="chart-tryons"></canvas>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Leads recentes</div><button class="btn btn-sm btn-secondary" onclick="nav('leads')">Ver todos</button></div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Nome</th><th>Email</th><th>WhatsApp</th><th>Data</th></tr></thead>
+            <tbody id="dashLeadsTbody"><tr><td colspan="4" class="text-muted" style="text-align:center;padding:20px;">Carregando...</td></tr></tbody></table>
           </div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-head"><h3>Produtos mais experimentados</h3></div>
-        <div class="card-body" id="top-products">
-          <div class="loading">Carregando...</div>
+      <div id="view-geracoes" class="view">
+        <div class="filter-bar">
+          <select id="jobsStatus" onchange="st.jobsPage=1;loadJobs()">
+            <option value="">Todos os status</option>
+            <option value="done">Concluído</option>
+            <option value="pending">Pendente</option>
+            <option value="processing">Processando</option>
+            <option value="error">Erro</option>
+          </select>
+          <span id="jobsCount" class="text-muted" style="font-size:13px;"></span>
+        </div>
+        <div id="jobsGrid" class="jobs-grid"></div>
+        <div id="jobsPagination" style="display:flex;gap:8px;margin-top:20px;align-items:center;justify-content:center;"></div>
+      </div>
+
+      <div id="view-produtos" class="view">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Produtos mais experimentados</div></div>
+          <canvas id="productsChart" height="80"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Ranking completo</div></div>
+          <div class="table-wrap">
+            <table><thead><tr><th>#</th><th>Produto</th><th>Gerações</th><th>% do uso</th></tr></thead>
+            <tbody id="productsTbody"></tbody></table>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- LEADS -->
-    <div class="view" id="view-leads">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
-        <div class="search-bar">
-          <input type="text" class="search-input" id="lead-search" placeholder="Buscar nome ou e-mail..." oninput="filterLeads()">
-          <button class="btn btn-ghost" onclick="loadLeads()">Atualizar</button>
+      <div id="view-leads" class="view">
+        <div class="kpi-grid" id="leadsKpis"></div>
+        <div class="card">
+          <div class="card-header">
+            <div><div class="card-title">Todos os leads</div></div>
+            <button class="btn btn-sm btn-secondary" onclick="exportLeadsCSV()">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Exportar CSV
+            </button>
+          </div>
+          <div class="filter-bar">
+            <input type="text" id="leadsSearch" placeholder="Buscar por nome ou email..." oninput="st.leadsPage=1;filterLeads()" style="flex:1;min-width:200px;">
+          </div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Nome</th><th>Email</th><th>WhatsApp</th><th>Produto</th><th>Data</th></tr></thead>
+            <tbody id="leadsTbody"></tbody></table>
+          </div>
+          <div id="leadsPagination" style="display:flex;gap:8px;margin-top:16px;justify-content:center;"></div>
         </div>
-        <button class="btn btn-primary" onclick="exportCSV()">⬇ Exportar CSV</button>
       </div>
 
-      <div class="card">
-        <table>
-          <thead>
-            <tr>
-              <th>Produto</th>
-              <th>Nome</th>
-              <th>E-mail</th>
-              <th>WhatsApp</th>
-              <th>Data</th>
-              <th>Resultado</th>
-            </tr>
-          </thead>
-          <tbody id="leads-body"></tbody>
-        </table>
+      <div id="view-integracao" class="view">
+        <div class="section-grid">
+          <div class="card">
+            <div class="card-header"><div class="card-title">Status do widget</div></div>
+            <div class="info-row"><span class="info-row-label">Situação</span><span class="badge badge-success">Ativo</span></div>
+            <div class="info-row"><span class="info-row-label">Versão</span><span class="info-row-value">v6.0</span></div>
+            <div class="info-row"><span class="info-row-label">Loja configurada</span><span class="info-row-value" id="integStoreUrl">-</span></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Personalização do botão</div></div>
+            <div class="field"><label>Texto do botão</label><input id="cfgBtnText" value="Experimentar" oninput="buildSnippet()"></div>
+            <div class="field"><label>Cor de fundo</label><input id="cfgBtnBg" type="color" value="#000000" oninput="buildSnippet()" style="height:36px;padding:2px 4px;width:100%;cursor:pointer;border-radius:6px;"></div>
+            <div class="field"><label>Cor do texto</label><input id="cfgBtnColor" type="color" value="#ffffff" oninput="buildSnippet()" style="height:36px;padding:2px 4px;width:100%;cursor:pointer;border-radius:6px;"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Snippet de instalação</div><div class="card-sub">Cole antes do &lt;/body&gt; em cada página de produto</div></div></div>
+          <div class="code-block"><button class="code-copy-btn" onclick="copySnippet()">Copiar</button><pre id="snippetCode" style="white-space:pre-wrap;word-break:break-all;"></pre></div>
+          <div style="margin-top:12px;padding:12px;background:var(--warning-light);border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;">
+            Substitua <strong>URL_DA_PECA</strong> pela URL real da imagem do produto em cada página.
+          </div>
+        </div>
       </div>
+
+      <div id="view-billing" class="view">
+        <div id="billingAlerts"></div>
+        <div class="section-grid">
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">Plano atual</div></div><button class="btn btn-sm btn-primary" onclick="upgradePlan()">Upgrade</button></div>
+            <div style="margin-bottom:14px;"><span id="billingPlanBadge" class="badge badge-primary" style="font-size:13px;padding:4px 12px;">-</span></div>
+            <div class="info-row"><span class="info-row-label">Gerações incluídas</span><span class="info-row-value fw-600" id="billingLimit">-</span></div>
+            <div class="info-row"><span class="info-row-label">Preço mensal</span><span class="info-row-value fw-600" id="billingPrice">-</span></div>
+            <div class="info-row"><span class="info-row-label">Excedente por geração</span><span class="info-row-value" id="billingOverageRate">-</span></div>
+            <div class="info-row"><span class="info-row-label">Assinatura</span><span id="billingSubStatus" class="badge badge-success">Ativo</span></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Estimativa deste mês</div></div>
+            <div style="margin-bottom:14px;"><div class="billing-total" id="billingTotal">$0</div><div class="text-muted" style="font-size:12px;margin-top:4px;" id="billingTotalSub">-</div></div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span id="billingUsageLabel">-</span><span id="billingUsagePct" class="fw-600">-</span></div>
+            <div class="progress-wrap" style="margin-bottom:14px;"><div class="progress-fill ok" id="billingProgress" style="width:0%"></div></div>
+            <div class="info-row"><span class="info-row-label">Plano base</span><span class="info-row-value" id="billingBase">-</span></div>
+            <div class="info-row"><span class="info-row-label">Excedente</span><span class="info-row-value" id="billingExcess">-</span></div>
+            <div class="info-row"><span class="info-row-label">Total estimado</span><span class="info-row-value fw-600" id="billingTotalRow">-</span></div>
+          </div>
+        </div>
+        <div class="section-grid">
+          <div class="card">
+            <div class="card-header"><div class="card-title">Próxima cobrança</div></div>
+            <div class="info-row"><span class="info-row-label">Data</span><span class="info-row-value fw-600" id="billingNextDate">-</span></div>
+            <div class="info-row"><span class="info-row-label">Valor estimado</span><span class="info-row-value fw-600" id="billingNextAmt">-</span></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Forma de pagamento</div></div>
+            <div id="billingPayMethod"><div class="text-muted" style="font-size:13px;padding:6px 0;">Nenhum cartão cadastrado</div></div>
+            <button class="btn btn-secondary btn-sm mt-8" onclick="openPortal()">Gerenciar pagamento</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><div class="card-title">Faturas</div></div><span id="billingMockNote" class="text-muted" style="font-size:11px;display:none;">dados simulados</span></div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Fatura</th><th>Período</th><th>Valor</th><th>Status</th><th>Ação</th></tr></thead>
+            <tbody id="invoicesTbody"></tbody></table>
+          </div>
+          <div id="invoicesEmpty" class="empty" style="display:none;"><div class="empty-icon">🧾</div><div class="empty-title">Sem faturas ainda</div></div>
+        </div>
+      </div>
+
+      <div id="view-config" class="view">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Dados da conta</div></div>
+          <div class="field"><label>Nome da empresa</label><input id="cfgName" type="text"></div>
+          <div class="field"><label>Email de contato</label><input id="cfgEmail" type="email"></div>
+          <div class="field"><label>URL da loja</label><input id="cfgStore" type="url" placeholder="https://minha-loja.com.br"></div>
+          <button class="btn btn-primary" onclick="saveConfig()">Salvar alterações</button>
+          <div id="cfgMsg" style="font-size:13px;margin-top:10px;min-height:18px;"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Credenciais de acesso</div></div>
+          <div class="info-row"><span class="info-row-label">Email de login</span><span class="info-row-value" id="cfgEmailDisplay">-</span></div>
+          <div style="margin-top:14px;padding:12px;background:var(--warning-light);border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;">
+            Para alterar sua senha entre em contato com o suporte Mirage.
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Endereço de cobrança</div></div>
+          <div class="field"><label>Empresa / Nome completo</label><input id="cfgBillingName" type="text"></div>
+          <div class="field"><label>CNPJ / CPF (opcional)</label><input id="cfgTax" type="text" placeholder="00.000.000/0001-00"></div>
+          <div class="field"><label>Endereço</label><textarea id="cfgAddress" rows="2" placeholder="Rua, numero, cidade, estado"></textarea></div>
+          <button class="btn btn-secondary btn-sm" onclick="openPortal()">Salvar no Stripe</button>
+        </div>
+      </div>
+
     </div>
-
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="modal-overlay" id="invoiceModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title" id="invoiceModalTitle">Fatura</div><div class="text-muted" style="font-size:12px;margin-top:2px;" id="invoiceModalPeriod"></div></div>
+      <button class="modal-close" onclick="closeModal('invoiceModal')">&times;</button>
+    </div>
+    <div id="invoiceModalBody"></div>
+    <div style="display:flex;gap:8px;margin-top:20px;" id="invoiceModalActions"></div>
+  </div>
+</div>
 
 <script>
-  // ── Configuração ────────────────────────────────────────────────────────────
-  const SEC_KEY = 'mcl_secret';
-  const URL_KEY = 'mcl_api_url';
+// URL da API — fixa no código. Para mudar, edite aqui.
+const API_URL = 'https://provador-virtual-brown.vercel.app';
 
-  const params   = new URLSearchParams(location.search);
-  const clientKey = params.get('key') || '';
+const PLANS = {
+  starter:    { name:'Starter',    limit:100,      price:9,   overage:0.15, color:'#6B7280' },
+  pro:        { name:'Pro',        limit:500,      price:29,  overage:0.08, color:'#635BFF' },
+  growth:     { name:'Growth',     limit:1000,     price:49,  overage:0.04, color:'#16A34A' },
+  scale:      { name:'Scale',      limit:5000,     price:149, overage:0.02, color:'#F59E0B' },
+  enterprise: { name:'Enterprise', limit:Infinity, price:499, overage:0,    color:'#0A0A0A' },
+};
 
-  let apiUrl     = params.get('api') || localStorage.getItem(URL_KEY) || 'https://provador-virtual-brown.vercel.app';
-  let secret     = localStorage.getItem(SEC_KEY + '_' + clientKey) || '';
-  let allLeads   = [];
-  let tryonChart = null;
+const st = {
+  clientKey:'', password:'', client:null,
+  billing:null, invoices:[], invoicesMock:false,
+  allLeads:[], jobsPage:1, leadsPage:1,
+};
+let productsChart = null;
 
-  // ── Inicialização ───────────────────────────────────────────────────────────
-  window.addEventListener('DOMContentLoaded', () => {
-    if (!clientKey) {
-      document.getElementById('login-desc').textContent = 'Chave de acesso não encontrada na URL.';
-      document.getElementById('login-btn').disabled = true;
-      return;
-    }
-    document.getElementById('key-preview').textContent = clientKey;
-
-    if (secret) {
-      doLogin(true);
-    }
+async function api(endpoint, action, data={}) {
+  const r = await fetch(`${API_URL}/api/${endpoint}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ action, clientKey:st.clientKey, password:st.password, ...data }),
   });
+  return r.json();
+}
 
-  // ── Login ───────────────────────────────────────────────────────────────────
-  async function doLogin(isAuto = false) {
-    const passInput = document.getElementById('login-pass');
-    const pass = passInput?.value?.trim() || secret;
-
-    if (!pass) { showLoginError('Informe sua senha de acesso.'); return; }
-
-    const btn = document.getElementById('login-btn');
-    btn.disabled = true;
-    btn.textContent = 'Verificando...';
-    document.getElementById('login-error').textContent = '';
-
-    try {
-      const res = await fetch(`${apiUrl}/api/leads?key=${encodeURIComponent(clientKey)}&action=analytics`, {
-        headers: { 'X-Client-Secret': pass },
-      });
-
-      if (res.status === 401 || res.status === 403) {
-        localStorage.removeItem(SEC_KEY + '_' + clientKey);
-        secret = '';
-        btn.disabled = false;
-        btn.textContent = 'Entrar';
-        if (!isAuto) showLoginError('Senha incorreta. Tente novamente.');
-        return;
-      }
-      if (!res.ok) {
-        btn.disabled = false;
-        btn.textContent = 'Entrar';
-        if (!isAuto) showLoginError('Erro ' + res.status + '. Tente novamente.');
-        return;
-      }
-
-      secret = pass;
-      localStorage.setItem(SEC_KEY + '_' + clientKey, pass);
-      localStorage.setItem(URL_KEY, apiUrl);
-
-      btn.disabled = false;
-      btn.textContent = 'Entrar';
-      openApp();
-
-    } catch (e) {
-      btn.disabled = false;
-      btn.textContent = 'Entrar';
-      if (!isAuto) showLoginError('Não foi possível conectar: ' + e.message);
-    }
-  }
-
-  function showLoginError(msg) {
-    document.getElementById('login-error').textContent = msg;
-  }
-
-  function openApp() {
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app').classList.add('visible');
-    document.getElementById('topbar-key').textContent = clientKey.slice(0, 12) + '...';
-    loadDashboard();
-  }
-
-  function doLogout() {
-    localStorage.removeItem(SEC_KEY + '_' + clientKey);
-    location.reload();
-  }
-
-  // ── Views ───────────────────────────────────────────────────────────────────
-  function showView(name, el) {
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('view-' + name).classList.add('active');
-    if (el) el.classList.add('active');
-    if (name === 'leads') loadLeads();
-  }
-
-  // ── Dashboard ───────────────────────────────────────────────────────────────
-  async function loadDashboard() {
-    document.getElementById('ds-jobs').textContent  = '...';
-    document.getElementById('ds-leads').textContent = '...';
-    document.getElementById('ds-conv').textContent  = '...';
-    document.getElementById('top-products').innerHTML = '<div class="loading">Carregando...</div>';
-
-    try {
-      const [analyticsRes, leadsRes] = await Promise.all([
-        fetch(`${apiUrl}/api/leads?key=${encodeURIComponent(clientKey)}&action=analytics`, { headers: { 'X-Client-Secret': secret } }),
-        fetch(`${apiUrl}/api/leads?key=${encodeURIComponent(clientKey)}&action=leads&limit=200`, { headers: { 'X-Client-Secret': secret } }),
-      ]);
-
-      const analytics = await analyticsRes.json();
-      const leadsData = await leadsRes.json();
-      allLeads = leadsData.leads || [];
-
-      // Stats
-      const totalJobs  = analytics.totalJobs  || 0;
-      const totalLeads = analytics.totalLeads || 0;
-      const conv = totalJobs > 0 ? Math.round((totalLeads / totalJobs) * 100) : 0;
-      document.getElementById('ds-jobs').textContent  = totalJobs;
-      document.getElementById('ds-leads').textContent = totalLeads;
-      document.getElementById('ds-conv').textContent  = conv + '%';
-
-      // Gráfico de tryons por dia
-      renderTryonsChart(allLeads);
-
-      // Top produtos
-      renderTopProducts(analytics.topProducts || []);
-
-    } catch (e) {
-      document.getElementById('top-products').innerHTML = `<div class="empty"><div class="icon">⚠️</div><p>Erro: ${escHtml(e.message)}</p></div>`;
-    }
-  }
-
-  function renderTryonsChart(leads) {
-    // Agrupa por dia (últimos 30 dias)
-    const today = new Date();
-    const days  = {};
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
-      days[key] = 0;
-    }
-    leads.forEach(l => {
-      if (!l.completedAt) return;
-      const key = new Date(l.completedAt).toISOString().slice(0, 10);
-      if (key in days) days[key]++;
+async function doLogin() {
+  const email    = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
+  const errEl    = document.getElementById('loginErr');
+  const btn      = document.getElementById('loginBtn');
+  errEl.textContent = '';
+  if (!email || !password) { errEl.textContent = 'Preencha email e senha.'; return; }
+  btn.disabled = true; btn.textContent = 'Entrando...';
+  try {
+    const r = await fetch(`${API_URL}/api/client`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'login', email, password }),
     });
+    const data = await r.json();
+    if (!data.ok) { errEl.textContent = data.error || 'Credenciais inválidas.'; return; }
+    st.clientKey = data.clientKey;
+    st.password  = password;
+    st.client    = data.client;
+    sessionStorage.setItem('cpSession', JSON.stringify({ clientKey:data.clientKey, password }));
+    startApp();
+  } catch { errEl.textContent = 'Erro de conexão. Tente novamente.'; }
+  finally { btn.disabled=false; btn.textContent='Entrar'; }
+}
 
-    const labels = Object.keys(days).map(d => {
-      const [, m, dd] = d.split('-');
-      return `${dd}/${m}`;
-    });
-    const values = Object.values(days);
+document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
 
-    const canvas = document.getElementById('chart-tryons');
-    if (tryonChart) tryonChart.destroy();
-    tryonChart = new Chart(canvas, {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Tryons',
-          data: values,
-          backgroundColor: 'rgba(108, 92, 231, 0.18)',
-          borderColor: '#6C5CE7',
-          borderWidth: 2,
-          borderRadius: 6,
-          borderSkipped: false,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              title: (items) => 'Dia ' + items[0].label,
-              label: (item)  => item.raw + ' tryon' + (item.raw !== 1 ? 's' : ''),
-            }
-          }
-        },
-        scales: {
-          x: { grid: { display: false }, ticks: { maxTicksLimit: 10, font: { size: 11 } } },
-          y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: '#f0f0f0' } },
-        }
-      }
-    });
+function doLogout() {
+  sessionStorage.removeItem('cpSession');
+  location.reload();
+}
+
+async function startApp() {
+  document.getElementById('loginWrap').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+  const c = st.client;
+  const plan = PLANS[c.plan] || PLANS.starter;
+  document.getElementById('sidebarStoreName').textContent = c.name || c.store || 'Minha loja';
+  document.getElementById('sidebarPlan').textContent = `${plan.name} — $${plan.price}/mês`;
+  document.getElementById('cfgName').value  = c.name  || '';
+  document.getElementById('cfgEmail').value = c.email || '';
+  document.getElementById('cfgStore').value = c.store || '';
+  document.getElementById('cfgEmailDisplay').textContent = c.email || '-';
+  await loadBillingData();
+  loadDashboard();
+}
+
+const VIEW_TITLES = { dashboard:'Dashboard', geracoes:'Gerações', produtos:'Produtos', leads:'Leads', integracao:'Integração', billing:'Billing', config:'Configurações' };
+
+function nav(id) {
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  const navEl = [...document.querySelectorAll('.nav-item')].find(n=>n.getAttribute('onclick')?.includes(`'${id}'`));
+  if (navEl) navEl.classList.add('active');
+  document.getElementById(`view-${id}`)?.classList.add('active');
+  document.getElementById('topbarTitle').textContent = VIEW_TITLES[id]||id;
+  document.getElementById('topbarActions').innerHTML = '';
+  if (id==='dashboard')   loadDashboard();
+  else if (id==='geracoes')   loadJobs();
+  else if (id==='produtos')   loadProducts();
+  else if (id==='leads')      loadLeads();
+  else if (id==='integracao') loadIntegracao();
+  else if (id==='billing')    renderBilling();
+}
+
+async function loadBillingData() {
+  const [sum, inv] = await Promise.all([ api('billing','summary'), api('billing','invoices') ]);
+  if (sum.ok) st.billing = sum;
+  if (inv.ok) { st.invoices = inv.invoices||[]; st.invoicesMock = inv.isMock||false; }
+  const hasPending = st.invoices.some(i=>i.status==='pending'||i.status==='open');
+  document.getElementById('billingBadge').style.display = hasPending ? 'flex' : 'none';
+}
+
+async function loadDashboard() {
+  const b = st.billing; if (!b) return;
+  const plan = PLANS[b.plan]||PLANS.starter;
+  const pct  = b.limit===Infinity ? 0 : Math.round((b.usage/b.limit)*100);
+  let alertsHtml='';
+  if (pct>=100) alertsHtml += mkAlert('error','⛔','Limite atingido — novas gerações estão bloqueadas',`Você usou ${b.usage} de ${b.limit} gerações.`,'<button class="btn btn-sm btn-danger" onclick="nav(\'billing\')">Fazer upgrade</button>');
+  else if (pct>=80) alertsHtml += mkAlert('warning','⚠️',`${pct}% do limite usado`,`Estimativa: $${b.total}.`,'<button class="btn btn-sm btn-warning" onclick="nav(\'billing\')">Ver billing</button>');
+  if (st.invoices.some(i=>i.status==='pending'||i.status==='open')) alertsHtml += mkAlert('error','🧾','Fatura pendente','Regularize para evitar suspensão.','<button class="btn btn-sm btn-danger" onclick="nav(\'billing\')">Pagar agora</button>');
+  document.getElementById('dashAlerts').innerHTML = alertsHtml;
+  const rem = b.limit===Infinity ? '∞' : Math.max(0, b.limit-b.usage);
+  document.getElementById('dashKpis').innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">Gerações usadas</div><div class="kpi-value ${pct>=100?'text-error':pct>=80?'text-warning':''}">${b.usage}</div><div class="kpi-sub">de ${b.limit===Infinity?'∞':b.limit} no plano</div></div>
+    <div class="kpi-card"><div class="kpi-label">Restantes</div><div class="kpi-value">${rem}</div><div class="kpi-sub">até o fim do ciclo</div></div>
+    <div class="kpi-card"><div class="kpi-label">Custo estimado</div><div class="kpi-value">$${b.total}</div><div class="kpi-sub">próx. cobrança ${fmtDate(b.nextDate)}</div></div>`;
+  document.getElementById('dashPlanSub').textContent = `Plano ${plan.name} — $${plan.price}/mês`;
+  document.getElementById('dashUsageLabel').textContent = `${b.usage} / ${b.limit===Infinity?'∞':b.limit} gerações`;
+  document.getElementById('dashUsagePct').textContent = pct+'%';
+  const prog = document.getElementById('dashProgress');
+  prog.style.width = Math.min(100,pct)+'%';
+  prog.className = 'progress-fill '+(pct>=100?'over':pct>=80?'warn':'ok');
+  document.getElementById('dashOverage').textContent = b.overageAmt>0 ? `$${b.overageAmt} (${b.excess} × $${b.overage})` : 'Nenhum';
+  document.getElementById('dashTotal').textContent = `$${b.total}`;
+  document.getElementById('dashNextDate').textContent = fmtDate(b.nextDate);
+  const jr = await api('client','jobs',{limit:6});
+  const dj = document.getElementById('dashRecentJobs');
+  dj.innerHTML = (jr.ok&&jr.jobs?.length) ? jr.jobs.slice(0,6).map(jobCard).join('') : '<div class="text-muted" style="font-size:12px;grid-column:1/-1;padding:8px 0;">Nenhuma geração ainda.</div>';
+  if (jr.ok) { document.getElementById('dashKpis').innerHTML += `<div class="kpi-card"><div class="kpi-label">Total de gerações</div><div class="kpi-value">${jr.total||b.usage}</div><div class="kpi-sub">todos os tempos</div></div>`; }
+  const lr = await api('client','leads',{limit:5});
+  const tb = document.getElementById('dashLeadsTbody');
+  if (lr.ok&&lr.leads?.length) {
+    tb.innerHTML = lr.leads.slice(0,5).map(l=>`<tr><td>${esc(l.name)}</td><td>${esc(l.email)}</td><td>${esc(l.whatsapp)}</td><td class="text-muted">${fmtTs(l.completedAt)}</td></tr>`).join('');
+    document.getElementById('dashKpis').innerHTML += `<div class="kpi-card"><div class="kpi-label">Leads capturados</div><div class="kpi-value">${lr.total}</div><div class="kpi-sub">total cadastrado</div></div>`;
+  } else {
+    tb.innerHTML = '<tr><td colspan="4" class="text-muted" style="text-align:center;padding:20px;">Nenhum lead ainda.</td></tr>';
   }
+}
 
-  function renderTopProducts(products) {
-    const container = document.getElementById('top-products');
-    if (!products.length) {
-      container.innerHTML = '<div class="empty"><div class="icon">👗</div><p>Nenhum produto experimentado ainda.</p></div>';
-      return;
-    }
-    const max = products[0]?.count || 1;
-    container.innerHTML = products.map(p => {
-      const domain = (() => { try { return new URL(p.url).hostname.replace('www.', ''); } catch { return p.url || 'produto'; }})();
-      const pct = Math.round((p.count / max) * 100);
-      return `
-        <div class="product-row">
-          <img src="${escHtml(p.url)}" class="product-img" alt="" onerror="this.style.display='none'">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:600;margin-bottom:4px">${escHtml(domain)}</div>
-            <div class="product-url">${escHtml(p.url)}</div>
-            <div class="bar-wrap" style="margin-top:8px">
-              <div class="bar-fill" style="width:${pct}%"></div>
-            </div>
-          </div>
-          <div class="product-count">${p.count}</div>
-        </div>`;
-    }).join('');
-  }
+function mkAlert(type,icon,title,sub,action='') {
+  return `<div class="alert alert-${type}"><span class="alert-icon">${icon}</span><div class="alert-body"><div class="alert-title">${title}</div><div class="alert-sub">${sub}</div></div>${action}</div>`;
+}
 
-  // ── Leads ────────────────────────────────────────────────────────────────────
-  async function loadLeads() {
-    document.getElementById('leads-body').innerHTML = '<tr><td colspan="6"><div class="loading">Carregando...</div></td></tr>';
-    allLeads = [];
-    try {
-      const res  = await fetch(`${apiUrl}/api/leads?key=${encodeURIComponent(clientKey)}&action=leads&limit=200`, { headers: { 'X-Client-Secret': secret } });
-      const data = await res.json();
-      allLeads = data.leads || [];
-      renderLeads(allLeads);
-    } catch (e) {
-      document.getElementById('leads-body').innerHTML = `<tr><td colspan="6"><div class="empty"><div class="icon">⚠️</div><p>Erro: ${escHtml(e.message)}</p></div></td></tr>`;
-    }
-  }
+async function loadJobs() {
+  const status = document.getElementById('jobsStatus')?.value||'';
+  document.getElementById('jobsGrid').innerHTML = '<div class="text-muted" style="font-size:13px;">Carregando...</div>';
+  const r = await api('client','jobs',{page:st.jobsPage,limit:30,status});
+  const grid = document.getElementById('jobsGrid');
+  document.getElementById('jobsCount').textContent = r.total ? `${r.total} gerações` : '';
+  if (!r.ok||!r.jobs?.length) { grid.innerHTML='<div class="empty"><div class="empty-icon">🖼️</div><div class="empty-title">Nenhuma geração encontrada</div></div>'; document.getElementById('jobsPagination').innerHTML=''; return; }
+  grid.innerHTML = r.jobs.map(jobCard).join('');
+  renderPag('jobsPagination', st.jobsPage, r.total, 30, p=>{ st.jobsPage=p; loadJobs(); });
+}
 
-  function renderLeads(leads) {
-    const tbody = document.getElementById('leads-body');
-    if (!leads.length) {
-      tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="icon">📭</div><p>Nenhum lead capturado ainda.</p></div></td></tr>';
-      return;
-    }
-    tbody.innerHTML = leads.map(l => {
-      const date  = l.completedAt ? new Date(l.completedAt).toLocaleDateString('pt-BR') : '-';
-      const pdomain = (() => { try { return new URL(l.productUrl).hostname.replace('www.',''); } catch { return l.productUrl || '-'; }})();
-      return `<tr>
-        <td>
-          <div style="display:flex;align-items:center;gap:8px">
-            ${l.productUrl ? `<img src="${escHtml(l.productUrl)}" class="result-thumb" title="${escHtml(l.productUrl)}" onerror="this.style.display='none'">` : ''}
-            <span style="font-size:12px;color:var(--muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(pdomain)}</span>
-          </div>
-        </td>
-        <td style="font-weight:600">${escHtml(l.name || '-')}</td>
-        <td>${escHtml(l.email || '-')}</td>
-        <td>${escHtml(l.whatsapp || '-')}</td>
-        <td>${date}</td>
-        <td>${l.resultUrl ? `<a href="${escHtml(l.resultUrl)}" target="_blank" style="color:var(--purple);font-size:12px;font-weight:600">Ver foto</a>` : '-'}</td>
-      </tr>`;
-    }).join('');
-  }
+function jobCard(j) {
+  const cls   = {done:'badge-success',pending:'badge-muted',processing:'badge-primary',error:'badge-error'}[j.status]||'badge-muted';
+  const label = {done:'Concluído',pending:'Pendente',processing:'Processando',error:'Erro'}[j.status]||j.status;
+  const img   = j.resultImage ? `<img class="job-img" src="${esc(j.resultImage)}" loading="lazy" onerror="this.style.display='none'">` : `<div class="job-img-ph"><span style="font-size:28px;">👗</span><span>${label}</span></div>`;
+  return `<div class="job-card">${img}<div class="job-meta"><span class="badge ${cls}">${label}</span><div class="job-time">${fmtTs(j.createdAt)}</div></div></div>`;
+}
 
-  function filterLeads() {
-    const q = document.getElementById('lead-search').value.toLowerCase();
-    if (!q) { renderLeads(allLeads); return; }
-    renderLeads(allLeads.filter(l =>
-      (l.name  || '').toLowerCase().includes(q) ||
-      (l.email || '').toLowerCase().includes(q) ||
-      (l.whatsapp || '').includes(q)
-    ));
-  }
+async function loadProducts() {
+  const r = await api('client','products',{limit:20});
+  if (!r.ok||!r.products?.length) { document.getElementById('productsTbody').innerHTML='<tr><td colspan="4" class="text-muted" style="text-align:center;padding:24px;">Nenhum dado de produto ainda.</td></tr>'; return; }
+  const products=r.products, total=products.reduce((s,p)=>s+p.count,0);
+  if (productsChart) { productsChart.destroy(); productsChart=null; }
+  const labels = products.slice(0,10).map(p=>{ try{ return new URL(p.url).pathname.split('/').filter(Boolean).pop()||p.url.slice(0,20); }catch{ return p.url.slice(0,20); } });
+  productsChart = new Chart(document.getElementById('productsChart').getContext('2d'), {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'Gerações', data:products.slice(0,10).map(p=>p.count), backgroundColor:'#635BFF', borderRadius:6 }] },
+    options:{ responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } } } },
+  });
+  document.getElementById('productsTbody').innerHTML = products.map((p,i)=>{
+    let label=p.url; try{ const u=new URL(p.url); label=u.hostname+u.pathname; }catch{}
+    return `<tr><td>${i+1}</td><td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(p.url)}">${esc(label)}</td><td><strong>${p.count}</strong></td><td>${total?Math.round((p.count/total)*100):0}%</td></tr>`;
+  }).join('');
+}
 
-  // ── CSV Export ───────────────────────────────────────────────────────────────
-  function exportCSV() {
-    if (!allLeads.length) { toast('Nenhum lead para exportar.'); return; }
-    const header = ['Nome', 'E-mail', 'WhatsApp', 'Produto', 'Data', 'URL Resultado'];
-    const rows = allLeads.map(l => [
-      l.name     || '',
-      l.email    || '',
-      l.whatsapp || '',
-      l.productUrl  || '',
-      l.completedAt ? new Date(l.completedAt).toLocaleDateString('pt-BR') : '',
-      l.resultUrl   || '',
-    ]);
-    const csv = [header, ...rows]
-      .map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(','))
-      .join('\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'leads_mirage_' + new Date().toISOString().slice(0, 10) + '.csv';
-    a.click();
-    toast('CSV exportado!');
-  }
+async function loadLeads() {
+  const r = await api('client','leads',{limit:200});
+  st.allLeads = r.ok ? (r.leads||[]) : [];
+  document.getElementById('leadsKpis').innerHTML = `<div class="kpi-card"><div class="kpi-label">Total de leads</div><div class="kpi-value">${r.total||0}</div><div class="kpi-sub">todos os tempos</div></div>`;
+  st.leadsPage=1; filterLeads();
+}
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
-  function escHtml(str) {
-    return String(str || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
+function filterLeads() {
+  const q = (document.getElementById('leadsSearch')?.value||'').toLowerCase();
+  const filtered = q ? st.allLeads.filter(l=>l.name?.toLowerCase().includes(q)||l.email?.toLowerCase().includes(q)) : st.allLeads;
+  const limit=30, start=(st.leadsPage-1)*limit;
+  document.getElementById('leadsTbody').innerHTML = filtered.slice(start,start+limit).map(l=>{
+    let prod=l.productUrl||''; try{ prod=new URL(prod).pathname.split('/').filter(Boolean).pop()||prod; }catch{}
+    return `<tr><td>${esc(l.name)}</td><td>${esc(l.email)}</td><td>${esc(l.whatsapp)}</td><td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(l.productUrl||'')}">${esc(prod)}</td><td class="text-muted">${fmtTs(l.completedAt)}</td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px;">Nenhum lead encontrado.</td></tr>';
+  renderPag('leadsPagination', st.leadsPage, filtered.length, limit, p=>{ st.leadsPage=p; filterLeads(); });
+}
 
-  function toast(msg) {
-    const el = document.getElementById('toast');
-    el.textContent = msg;
-    el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 2500);
-  }
+function exportLeadsCSV() {
+  if (!st.allLeads.length) { alert('Nenhum lead para exportar.'); return; }
+  const rows = [['Nome','Email','WhatsApp','Produto','Data'], ...st.allLeads.map(l=>[l.name,l.email,l.whatsapp,l.productUrl||'',l.completedAt?new Date(l.completedAt).toLocaleString('pt-BR'):''])];
+  const csv  = rows.map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8;'}));
+  a.download = `leads-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+}
+
+function loadIntegracao() {
+  document.getElementById('integStoreUrl').textContent = st.client?.store || 'Não configurado';
+  buildSnippet();
+}
+
+function buildSnippet() {
+  const btnText  = document.getElementById('cfgBtnText')?.value||'Experimentar';
+  const btnBg    = document.getElementById('cfgBtnBg')?.value||'#000000';
+  const btnColor = document.getElementById('cfgBtnColor')?.value||'#ffffff';
+  const storeName = (st.client?.name||st.client?.store||'Minha Loja').replace(/'/g,"\\'");
+  document.getElementById('snippetCode').textContent =
+`<!-- Mirage Virtual Try-On Widget -->
+<script>
+  window.VTON_CLIENT_KEY  = '${st.clientKey}';
+  window.VTON_STORE_NAME  = '${storeName}';
+  window.VTON_GARMENT_URL = 'URL_DA_PECA';
+  window.VTON_CATEGORY    = 'auto';
+  window.VTON_BTN_TEXT    = '${btnText}';
+  window.VTON_BTN_BG      = '${btnBg}';
+  window.VTON_BTN_COLOR   = '${btnColor}';
+<\/script>
+<script src="https://wvgtec.github.io/provador-virtual-landing/widget/tryon-widget.js?v=6.0"><\/script>`;
+}
+
+function copySnippet() {
+  navigator.clipboard.writeText(document.getElementById('snippetCode').textContent)
+    .then(()=>{ const b=document.querySelector('.code-copy-btn'); b.textContent='Copiado!'; setTimeout(()=>b.textContent='Copiar',2000); });
+}
+
+function renderBilling() {
+  const b=st.billing; if (!b) { loadBillingData().then(renderBilling); return; }
+  const plan=PLANS[b.plan]||PLANS.starter, pct=b.limit===Infinity?0:Math.round((b.usage/b.limit)*100);
+  let alertsHtml='';
+  if (!b.stripeEnabled) alertsHtml += mkAlert('info','ℹ️','Stripe não configurado','Os valores são estimativas. Entre em contato para ativar pagamentos automáticos.');
+  if (pct>=100) alertsHtml += mkAlert('error','⛔','Limite atingido','Novas gerações bloqueadas até upgrade.','<button class="btn btn-sm btn-danger" onclick="upgradePlan()">Fazer upgrade</button>');
+  else if (pct>=80) alertsHtml += mkAlert('warning','⚠️',`${pct}% do limite usado`,`Estimativa: $${b.total}.`);
+  if (st.invoices.some(i=>['uncollectible','failed'].includes(i.status))) alertsHtml += mkAlert('error','💳','Pagamento falhou','Atualize sua forma de pagamento.','<button class="btn btn-sm btn-danger" onclick="openPortal()">Atualizar cartão</button>');
+  document.getElementById('billingAlerts').innerHTML = alertsHtml;
+  const badge=document.getElementById('billingPlanBadge');
+  badge.textContent=plan.name; badge.style.background=plan.color+'22'; badge.style.color=plan.color;
+  document.getElementById('billingLimit').textContent = b.limit===Infinity?'Ilimitado':b.limit.toLocaleString('pt-BR');
+  document.getElementById('billingPrice').textContent = `$${plan.price}/mês`;
+  document.getElementById('billingOverageRate').textContent = plan.overage>0?`$${plan.overage} por geração`:'Sem cobrança extra';
+  const smap={active:['badge-success','Ativo'],past_due:['badge-error','Atrasado'],canceled:['badge-error','Cancelado'],trialing:['badge-warning','Trial']};
+  const [sc,sl]=smap[b.subscriptionStatus]||['badge-success','Ativo'];
+  document.getElementById('billingSubStatus').className='badge '+sc;
+  document.getElementById('billingSubStatus').textContent=sl;
+  document.getElementById('billingTotal').textContent=`$${b.total}`;
+  document.getElementById('billingTotalSub').textContent=`Plano $${plan.price}`+(b.overageAmt>0?` + excedente $${b.overageAmt}`:'');
+  document.getElementById('billingUsageLabel').textContent=`${b.usage} / ${b.limit===Infinity?'∞':b.limit}`;
+  document.getElementById('billingUsagePct').textContent=pct+'%';
+  const prog=document.getElementById('billingProgress');
+  prog.style.width=Math.min(100,pct)+'%';
+  prog.className='progress-fill '+(pct>=100?'over':pct>=80?'warn':'ok');
+  document.getElementById('billingBase').textContent=`$${plan.price}`;
+  document.getElementById('billingExcess').textContent=b.excess>0?`${b.excess} × $${b.overage} = $${b.overageAmt}`:'Nenhum';
+  document.getElementById('billingTotalRow').textContent=`$${b.total}`;
+  document.getElementById('billingNextDate').textContent=fmtDate(b.nextDate);
+  document.getElementById('billingNextAmt').textContent=`$${b.total}`;
+  const pmEl=document.getElementById('billingPayMethod');
+  if (b.paymentMethod) {
+    const {brand,last4,expMonth,expYear}=b.paymentMethod;
+    pmEl.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;"><span style="font-size:22px;">💳</span><div><div class="fw-600" style="text-transform:capitalize;">${brand} terminando em ${last4}</div><div class="text-muted" style="font-size:12px;">Expira ${String(expMonth).padStart(2,'0')}/${expYear}</div></div></div>`;
+  } else { pmEl.innerHTML='<div class="text-muted" style="font-size:13px;padding:6px 0;">Nenhum cartão cadastrado</div>'; }
+  if (st.invoicesMock) document.getElementById('billingMockNote').style.display='inline';
+  const tbody=document.getElementById('invoicesTbody'), emptyEl=document.getElementById('invoicesEmpty');
+  if (!st.invoices.length) { tbody.innerHTML=''; emptyEl.style.display='block'; return; }
+  emptyEl.style.display='none';
+  const scm={paid:'badge-success',pending:'badge-warning',open:'badge-warning',uncollectible:'badge-error',failed:'badge-error',void:'badge-muted'};
+  const slm={paid:'Pago',pending:'Pendente',open:'Pendente',uncollectible:'Falhou',failed:'Falhou',void:'Cancelado'};
+  tbody.innerHTML = st.invoices.map(inv=>{
+    const sc2=scm[inv.status]||'badge-muted', sl2=slm[inv.status]||inv.status;
+    const period=inv.periodStart?`${fmtDate(inv.periodStart)} - ${fmtDate(inv.periodEnd)}`:'-';
+    const btn=(inv.status==='pending'||inv.status==='open')
+      ? `<button class="btn btn-sm btn-danger" onclick="payInvoice('${inv.id}')">Pagar</button>`
+      : `<button class="btn btn-sm btn-secondary" onclick="showInvoiceDetail('${inv.id}')">Ver</button>`;
+    return `<tr><td class="text-muted" style="font-size:12px;">${inv.number||fmtDate(inv.date)}</td><td class="text-muted" style="font-size:12px;">${period}</td><td class="fw-600">$${inv.amount}</td><td><span class="badge ${sc2}">${sl2}</span></td><td>${btn}</td></tr>`;
+  }).join('');
+}
+
+async function payInvoice(id) {
+  const r=await api('billing','checkout',{invoiceId:id});
+  if (r.ok&&r.url) window.location.href=r.url;
+  else alert(r.error||'Erro ao abrir pagamento. Entre em contato com o suporte.');
+}
+async function upgradePlan() {
+  const r=await api('billing','checkout');
+  if (r.ok&&r.url) window.location.href=r.url;
+  else alert(r.error||'Para fazer upgrade: suporte@miragetryon.com');
+}
+async function openPortal() {
+  const r=await api('billing','portal');
+  if (r.ok&&r.url) window.open(r.url,'_blank');
+  else alert(r.error||'Portal indisponível. Contato: suporte@miragetryon.com');
+}
+function showInvoiceDetail(id) {
+  const inv=st.invoices.find(i=>i.id===id); if (!inv) return;
+  document.getElementById('invoiceModalTitle').textContent=`Fatura ${inv.number||fmtDate(inv.date)}`;
+  document.getElementById('invoiceModalPeriod').textContent=inv.periodStart?`Período: ${fmtDate(inv.periodStart)} - ${fmtDate(inv.periodEnd)}`:'';
+  document.getElementById('invoiceModalBody').innerHTML=[
+    ...(inv.lines||[]).map(l=>`<div class="info-row"><span class="info-row-label">${esc(l.description)}</span><span class="info-row-value">$${l.amount}</span></div>`),
+    `<div class="info-row"><span class="info-row-label fw-600">Total</span><span class="info-row-value fw-600">$${inv.amount}</span></div>`,
+    `<div class="info-row"><span class="info-row-label">Status</span><span class="badge ${inv.status==='paid'?'badge-success':'badge-warning'}">${inv.status==='paid'?'Pago':'Pendente'}</span></div>`,
+  ].join('');
+  document.getElementById('invoiceModalActions').innerHTML=(inv.hostedUrl?`<a href="${inv.hostedUrl}" target="_blank" class="btn btn-primary">Abrir fatura</a>`:'')+`<button class="btn btn-secondary" onclick="closeModal('invoiceModal')">Fechar</button>`;
+  document.getElementById('invoiceModal').classList.add('open');
+}
+
+async function saveConfig() {
+  const msg=document.getElementById('cfgMsg');
+  msg.textContent='Salvando...'; msg.style.color='var(--muted)';
+  const r=await api('client','update',{ name:document.getElementById('cfgName').value.trim(), email:document.getElementById('cfgEmail').value.trim(), store:document.getElementById('cfgStore').value.trim() });
+  if (r.ok) {
+    st.client=r.client;
+    document.getElementById('sidebarStoreName').textContent=r.client.name||r.client.store||'Minha loja';
+    document.getElementById('cfgEmailDisplay').textContent=r.client.email||'-';
+    msg.textContent='Salvo com sucesso.'; msg.style.color='var(--success)';
+  } else { msg.textContent=r.error||'Erro ao salvar.'; msg.style.color='var(--error)'; }
+  setTimeout(()=>msg.textContent='',3000);
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtTs(ts){ if (!ts) return '-'; const d=new Date(ts); return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+function fmtDate(s){ if (!s) return '-'; const [y,m,d]=s.split('-'); return `${d}/${m}/${y}`; }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+function renderPag(cid, page, total, limit, onPage) {
+  const pages=Math.ceil(total/limit), el=document.getElementById(cid);
+  if (pages<=1){ el.innerHTML=''; return; }
+  let html='';
+  if (page>1) html+=`<button class="btn btn-sm btn-secondary" onclick="(${onPage.toString()})(${page-1})">Anterior</button>`;
+  html+=`<span class="text-muted" style="font-size:12px;padding:0 8px;">${page} / ${pages}</span>`;
+  if (page<pages) html+=`<button class="btn btn-sm btn-secondary" onclick="(${onPage.toString()})(${page+1})">Próximo</button>`;
+  el.innerHTML=html;
+}
+
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{ if(e.target===o) closeModal(o.id); }));
+
+// Auto-login via sessionStorage
+(async()=>{
+  const saved=sessionStorage.getItem('cpSession');
+  if (!saved) return;
+  try {
+    const { clientKey, password } = JSON.parse(saved);
+    const r=await fetch(`${API_URL}/api/client`,{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action:'me', clientKey, password }) });
+    const data=await r.json();
+    if (data.ok){ st.clientKey=clientKey; st.password=password; st.client=data.client; startApp(); }
+    else sessionStorage.removeItem('cpSession');
+  } catch { sessionStorage.removeItem('cpSession'); }
+})();
+
+if (new URLSearchParams(location.search).get('payment')==='success') {
+  setTimeout(()=>alert('Pagamento realizado com sucesso!'),600);
+  history.replaceState({},'',location.pathname);
+}
 </script>
 </body>
 </html>

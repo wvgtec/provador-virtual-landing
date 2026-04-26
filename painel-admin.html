@@ -237,13 +237,13 @@ tbody tr:hover td { background: #fafbff; }
       <span>Mirage</span>
     </div>
     <h1>Painel Admin</h1>
-    <p>Entre com suas credenciais para continuar</p>
+    <p>Acesso restrito ao administrador Mirage.</p>
     <div class="field">
-      <label>URL da API</label>
-      <input type="text" id="in-url" placeholder="https://seu-projeto.vercel.app" autocomplete="url">
+      <label>Email</label>
+      <input type="email" id="in-email" placeholder="admin@miragetryon.com" autocomplete="email">
     </div>
     <div class="field">
-      <label>Senha de Admin</label>
+      <label>Senha</label>
       <input type="password" id="in-pass" placeholder="••••••••••" autocomplete="current-password">
     </div>
     <button class="btn btn-primary btn-full" id="login-btn" onclick="doLogin()">Entrar</button>
@@ -468,6 +468,7 @@ tbody tr:hover td { background: #fafbff; }
         <option value="enterprise">Enterprise (ilimitado)</option>
       </select>
     </div>
+    <div class="field"><label>Senha de acesso ao painel (mín. 6 chars)</label><input type="password" id="new-password" placeholder="O cliente usará esta senha para entrar"></div>
     <div id="created-result" style="display:none"></div>
     <div class="modal-actions" id="create-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-create')">Cancelar</button>
@@ -533,7 +534,7 @@ const PLANS = {
 const WIDGET_VERSION = '6.0';
 
 // ─── Estado ────────────────────────────────────────────────────────────────────
-let apiUrl   = '';
+let apiUrl   = 'https://provador-virtual-brown.vercel.app';
 let apiPass  = '';
 let clients  = [];
 let allJobs  = [];
@@ -544,27 +545,34 @@ let snippetStore = '';
 let planChangeKey = null;
 let dashCharts = {};
 
+// URL da API — fixa no código. Para mudar, edite aqui.
+const API_URL = 'https://provador-virtual-brown.vercel.app';
+
 // ─── Login ─────────────────────────────────────────────────────────────────────
 async function doLogin() {
-  const url  = document.getElementById('in-url').value.trim().replace(/\/$/, '');
-  const pass = document.getElementById('in-pass').value.trim();
-  const err  = document.getElementById('login-err');
-  const btn  = document.getElementById('login-btn');
-  if (!url || !pass) { err.textContent = 'Preencha todos os campos.'; return; }
+  const email = document.getElementById('in-email').value.trim();
+  const pass  = document.getElementById('in-pass').value.trim();
+  const err   = document.getElementById('login-err');
+  const btn   = document.getElementById('login-btn');
+  if (!email || !pass) { err.textContent = 'Preencha email e senha.'; return; }
   err.textContent = '';
   btn.disabled = true; btn.textContent = 'Entrando...';
   try {
-    const res = await fetch(`${url}/api/admin?action=list`, { headers: { Authorization: `Bearer ${pass}` } });
-    if (res.status === 401) { err.textContent = 'Senha incorreta.'; btn.disabled = false; btn.textContent = 'Entrar'; return; }
-    if (!res.ok) { err.textContent = 'Erro ' + res.status; btn.disabled = false; btn.textContent = 'Entrar'; return; }
+    const res = await fetch(`${API_URL}/api/admin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login', email, password: pass }),
+    });
     const data = await res.json();
-    clients = data.clients || [];
-    apiUrl  = url;
+    if (!data.ok) { err.textContent = data.error || 'Credenciais inválidas.'; btn.disabled = false; btn.textContent = 'Entrar'; return; }
+    apiUrl  = API_URL;
     apiPass = pass;
-    localStorage.setItem('mg_url',  url);
-    localStorage.setItem('mg_pass', pass);
-    document.getElementById('topbar-sub').textContent = url;
-    document.getElementById('settings-api-url').textContent = url;
+    localStorage.setItem('mg_email', email);
+    localStorage.setItem('mg_pass',  pass);
+    const listData = await apiFetch('list');
+    clients = listData.clients || [];
+    document.getElementById('topbar-sub').textContent = API_URL;
+    document.getElementById('settings-api-url').textContent = API_URL;
     document.getElementById('login-wrap').style.display = 'none';
     document.getElementById('app').classList.add('visible');
     navigate('dashboard');
@@ -575,16 +583,16 @@ async function doLogin() {
 }
 
 function doLogout() {
-  localStorage.removeItem('mg_url'); localStorage.removeItem('mg_pass');
+  localStorage.removeItem('mg_email'); localStorage.removeItem('mg_pass');
   location.reload();
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  const url  = localStorage.getItem('mg_url')  || '';
-  const pass = localStorage.getItem('mg_pass') || '';
-  if (url && pass) {
-    document.getElementById('in-url').value  = url;
-    document.getElementById('in-pass').value = pass;
+  const email = localStorage.getItem('mg_email') || '';
+  const pass  = localStorage.getItem('mg_pass')  || '';
+  if (email && pass) {
+    document.getElementById('in-email').value = email;
+    document.getElementById('in-pass').value  = pass;
     doLogin();
   }
   document.getElementById('in-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
@@ -921,8 +929,17 @@ function renderClientDetail(key) {
         </div>
         <div class="actions-card">
           <h4>Painel do cliente</h4>
-          <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Link de acesso exclusivo para o cliente visualizar seus dados.</p>
-          <button class="btn btn-primary btn-full btn-sm" onclick="window.open('${apiUrl}/painel-cliente.html?key=${encodeURIComponent(c.key)}','_blank')">Abrir painel do cliente</button>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:10px">O cliente acessa com o email <strong>${escHtml(c.email)}</strong> e a senha definida abaixo.</p>
+          <button class="btn btn-primary btn-full btn-sm" onclick="window.open('https://wvgtec.github.io/provador-virtual-landing/painel-cliente.html','_blank')">Abrir painel do cliente</button>
+        </div>
+        <div class="actions-card" style="margin-top:12px">
+          <h4>Alterar senha do cliente</h4>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Define a senha que o cliente usará para entrar no painel.</p>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="password" id="newClientPassword" placeholder="Nova senha (mín. 6 chars)" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;outline:none;">
+            <button class="btn btn-secondary btn-sm" onclick="setClientPassword('${escHtml(c.key)}')">Definir</button>
+          </div>
+          <div id="pwdMsg" style="font-size:12px;margin-top:6px;min-height:16px;"></div>
         </div>
       </div>
     </div>
@@ -1067,21 +1084,38 @@ function renderSettings() {
 
 // ─── Criar cliente ─────────────────────────────────────────────────────────────
 function openCreateModal() {
-  document.getElementById('new-name').value  = '';
-  document.getElementById('new-email').value = '';
-  document.getElementById('new-store').value = '';
+  document.getElementById('new-name').value     = '';
+  document.getElementById('new-email').value    = '';
+  document.getElementById('new-store').value    = '';
+  document.getElementById('new-password').value = '';
   document.getElementById('created-result').style.display = 'none';
   document.getElementById('create-actions').style.display = '';
   document.getElementById('modal-create').classList.add('open');
 }
 
+async function setClientPassword(key) {
+  const pwd    = document.getElementById('newClientPassword')?.value?.trim();
+  const msgEl  = document.getElementById('pwdMsg');
+  if (!pwd || pwd.length < 6) { if (msgEl) { msgEl.textContent = 'Senha deve ter pelo menos 6 caracteres.'; msgEl.style.color = 'var(--error)'; } return; }
+  if (msgEl) { msgEl.textContent = 'Salvando...'; msgEl.style.color = 'var(--muted)'; }
+  const r = await apiFetch('setPassword', { key, password: pwd });
+  if (msgEl) {
+    msgEl.textContent  = r.ok ? 'Senha definida com sucesso.' : (r.error || 'Erro ao definir senha.');
+    msgEl.style.color  = r.ok ? 'var(--success)' : 'var(--error)';
+    setTimeout(() => { if (msgEl) msgEl.textContent = ''; }, 3000);
+  }
+  if (r.ok && document.getElementById('newClientPassword')) document.getElementById('newClientPassword').value = '';
+}
+
 async function createClient() {
-  const name  = document.getElementById('new-name').value.trim();
-  const email = document.getElementById('new-email').value.trim();
-  const store = document.getElementById('new-store').value.trim();
-  const plan  = document.getElementById('new-plan').value;
+  const name     = document.getElementById('new-name').value.trim();
+  const email    = document.getElementById('new-email').value.trim();
+  const store    = document.getElementById('new-store').value.trim();
+  const plan     = document.getElementById('new-plan').value;
+  const password = document.getElementById('new-password').value.trim();
   if (!name || !email) { toast('Preencha nome e email.', 'error'); return; }
-  const data = await apiFetch('create', { name, email, store, plan });
+  if (password && password.length < 6) { toast('Senha deve ter pelo menos 6 caracteres.', 'error'); return; }
+  const data = await apiFetch('create', { name, email, store, plan, password: password || undefined });
   if (data.error) { toast('Erro: ' + data.error, 'error'); return; }
   const key = data.key || data.client?.key;
   const sec = data.secret || data.client?.secret;
