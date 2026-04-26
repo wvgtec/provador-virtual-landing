@@ -1217,4 +1217,184 @@ function renderSettings() {
 // ─── Criar cliente ─────────────────────────────────────────────────────────────
 function openCreateModal() {
   document.getElementById('new-name').value     = '';
-  document.getEle
+  document.getElementById('new-email').value    = '';
+  document.getElementById('new-store').value    = '';
+  document.getElementById('new-password').value = '';
+  document.getElementById('new-plan').value     = 'growth';
+  document.getElementById('created-result').style.display = 'none';
+  document.getElementById('create-actions').style.display = 'flex';
+  document.getElementById('modal-create').classList.add('open');
+}
+
+async function createClient() {
+  const name     = document.getElementById('new-name').value.trim();
+  const email    = document.getElementById('new-email').value.trim();
+  const store    = document.getElementById('new-store').value.trim();
+  const plan     = document.getElementById('new-plan').value;
+  const password = document.getElementById('new-password').value;
+  if (!name || !email) { alert('Nome e e-mail são obrigatórios.'); return; }
+  const btn = document.querySelector('#create-actions .btn-primary');
+  btn.disabled = true; btn.textContent = 'Criando...';
+  const r = await apiFetch('create', { name, email, store, plan, password });
+  btn.disabled = false; btn.textContent = 'Criar cliente';
+  if (!r.ok) { alert(r.error || 'Erro ao criar cliente.'); return; }
+  const panelUrl = 'https://wvgtec.github.io/provador-virtual-landing/painel-cliente.html';
+  const el = document.getElementById('created-result');
+  el.style.display = 'block';
+  el.innerHTML = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;font-size:13px;">
+    <div style="font-weight:700;color:#166534;margin-bottom:8px;">✅ Cliente criado com sucesso!</div>
+    <div style="margin-bottom:6px;"><strong>Chave API:</strong></div>
+    <div class="secret-val">${escHtml(r.key)}</div>
+    ${r.client.passwordHash || password ? `<div style="margin:6px 0 2px;"><strong>Senha do painel:</strong></div><div class="secret-val">${escHtml(password||'(definida)')}</div>` : ''}
+    <div style="margin:8px 0 2px;font-size:12px;"><strong>Link do painel:</strong></div>
+    <div class="secret-val" style="font-size:11px;">${escHtml(panelUrl)}</div>
+    <button class="btn btn-secondary btn-sm" style="margin-top:8px;width:100%" onclick="copyText('${escHtml(panelUrl)}')">Copiar link do painel</button>
+  </div>`;
+  document.getElementById('create-actions').style.display = 'none';
+  await loadClients();
+}
+
+async function toggleClient(key) {
+  const r = await apiFetch('toggle', { key });
+  if (!r.ok) { alert(r.error || 'Erro.'); return; }
+  await loadClients();
+  if (document.getElementById('client-detail-panel')?.style.display !== 'none') {
+    openClientDetail(key);
+  }
+}
+
+async function deleteClient(key, name) {
+  if (!confirm(`Excluir "${name}"? Esta ação não pode ser desfeita.`)) return;
+  const r = await apiFetch('delete', { key });
+  if (!r.ok) { alert(r.error || 'Erro ao excluir.'); return; }
+  document.getElementById('client-detail-panel').style.display = 'none';
+  await loadClients();
+}
+
+async function setClientPassword(key) {
+  const pw = document.getElementById('newClientPassword').value;
+  if (!pw || pw.length < 6) { alert('Senha deve ter no mínimo 6 caracteres.'); return; }
+  const r = await apiFetch('setPassword', { key, password: pw });
+  if (r.ok) { alert('Senha definida com sucesso.'); document.getElementById('newClientPassword').value = ''; }
+  else { alert(r.error || 'Erro ao definir senha.'); }
+}
+
+async function resetUsage(key) {
+  if (!confirm('Zerar o contador de uso deste cliente?')) return;
+  const r = await apiFetch('resetUsage', { key });
+  if (r.ok) { await loadClients(); openClientDetail(key); }
+  else alert(r.error || 'Erro ao zerar uso.');
+}
+
+let _planChangeKey = '';
+function openPlanChange(key) {
+  _planChangeKey = key;
+  // Popula o select com planos do Redis (se carregados) ou usa os padrão
+  if (typeof produtosCache !== 'undefined' && produtosCache.length) {
+    const sel = document.getElementById('change-plan-select');
+    sel.innerHTML = produtosCache.map(p =>
+      `<option value="${esc(p.id)}">${esc(p.name)} (${p.tryons === 0 ? 'Ilimitado' : p.tryons} tryons / R$ ${Number(p.price).toFixed(2)})</option>`
+    ).join('');
+  }
+  document.getElementById('modal-plan').classList.add('open');
+}
+
+async function confirmPlanChange() {
+  const plan = document.getElementById('change-plan-select').value;
+  if (!plan || !_planChangeKey) return;
+  const r = await apiFetch('changePlan', { key: _planChangeKey, plan });
+  if (r.ok) {
+    closeModal('modal-plan');
+    await loadClients();
+    openClientDetail(_planChangeKey);
+  } else {
+    alert(r.error || 'Erro ao trocar plano.');
+  }
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const btns = [...document.querySelectorAll('button')].filter(b => b.onclick?.toString().includes(text) || b.getAttribute('onclick')?.includes('copyText'));
+    btns.forEach(b => { const orig = b.textContent; b.textContent = 'Copiado!'; setTimeout(() => b.textContent = orig, 1500); });
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+  });
+}
+
+// ─── Snippet ──────────────────────────────────────────────────────────────────
+let _snippetKey = '', _snippetStore = '';
+
+function openSnippet(key, store) {
+  _snippetKey   = key;
+  _snippetStore = store;
+  document.getElementById('snippet-platform').value = 'shopify';
+  updateSnippet();
+  document.getElementById('modal-snippet').classList.add('open');
+}
+
+function updateSnippet() {
+  const platform = document.getElementById('snippet-platform').value;
+  const base  = 'https://provador-virtual-brown.vercel.app';
+  const wUrl  = `${base}/widget/tryon-widget.js?v=6.0`;
+  const store = (_snippetStore || 'Minha Loja').replace(/'/g, "\\'");
+  const garments = {
+    shopify:       "{{ product.featured_image | img_url: 'master' }}",
+    nuvemshop:     '{product.featured_image.src}',
+    woocommerce:   '<?php echo get_the_post_thumbnail_url(get_the_ID(), "full"); ?>',
+    lojaintegrada: '{% if product.image %}{{ product.image.url }}{% endif %}',
+    vtexlegacy:    '$product.ImageURL',
+  };
+  let snippet;
+  if (platform === 'vtexio') {
+    snippet = `<script>\n  window.VTON_API_URL    = '${base}';\n  window.VTON_CLIENT_KEY = '${_snippetKey}';\n  window.VTON_STORE_NAME = '${store}';\n  window.addEventListener('load', function() {\n    var img = document.querySelector('[class*="productImageTag"]')\n           || document.querySelector('[class*="product-image"] img');\n    if (img) window.VTON_GARMENT_URL = img.src;\n  });\n<\/script>\n<div id="vton-anchor"><\/div>\n<script src="${wUrl}" defer><\/script>`;
+  } else {
+    snippet = `<script>\n  window.VTON_API_URL     = '${base}';\n  window.VTON_CLIENT_KEY  = '${_snippetKey}';\n  window.VTON_GARMENT_URL = '${garments[platform] || garments.shopify}';\n  window.VTON_STORE_NAME  = '${store}';\n<\/script>\n<div id="vton-anchor"><\/div>\n<script src="${wUrl}" defer><\/script>`;
+  }
+  document.getElementById('snippet-box').innerHTML =
+    `<button onclick="copySnippet()" style="position:absolute;top:10px;right:10px;background:rgba(255,255,255,.1);color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer">Copiar</button>` +
+    escHtml(snippet);
+}
+
+function copySnippet() {
+  const raw = document.getElementById('snippet-box').innerText.replace(/^Copiar\n?/, '');
+  navigator.clipboard.writeText(raw).then(() => {
+    const btn = document.querySelector('#snippet-box button');
+    if (btn) { btn.textContent = 'Copiado!'; setTimeout(() => btn.textContent = 'Copiar', 1500); }
+  });
+}
+
+// ─── Modal helpers ────────────────────────────────────────────────────────────
+function closeModal(id) {
+  document.getElementById(id)?.classList.remove('open');
+}
+
+function closeModalBg(event, id) {
+  if (event.target === document.getElementById(id)) closeModal(id);
+}
+
+// ─── Utilitários ──────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function timeAgo(ts) {
+  if (!ts) return '-';
+  const diff = Date.now() - ts;
+  const min  = Math.floor(diff / 60000);
+  const h    = Math.floor(diff / 3600000);
+  const d    = Math.floor(diff / 86400000);
+  if (min < 2)   return 'agora';
+  if (min < 60)  return `${min}min atrás`;
+  if (h < 24)    return `${h}h atrás`;
+  if (d < 30)    return `${d}d atrás`;
+  return new Date(ts).toLocaleDateString('pt-BR');
+}
+
+</script>
+</body>
+</html>
